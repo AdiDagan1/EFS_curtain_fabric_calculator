@@ -101,17 +101,7 @@ function initializeEventListeners() {
         });
     });
 
-    // Language selector - only update diagram if already calculated
-    const languageSelect = document.getElementById('diagram-language');
-    if (languageSelect) {
-        languageSelect.addEventListener('change', (e) => {
-            state.diagramLanguage = e.target.value;
-            const solution = findOptimalSolution();
-            if (solution) {
-                renderDiagram(solution);
-            }
-        });
-    }
+    // Language selector removed - always use English for diagram labels
 
     // PDF export button
     const exportBtn = document.getElementById('export-pdf-btn');
@@ -337,9 +327,9 @@ function renderDiagram(solution) {
     const container = document.getElementById('diagram-container');
     container.innerHTML = '';
     
-    const lang = state.diagramLanguage;
-    const t = translations[lang] || translations.en;
-    const isRTL = lang === 'he' || lang === 'ar';
+    // Always use English for diagram labels (project/curtain names can be in Hebrew)
+    const t = translations.en;
+    const isRTL = false; // Always LTR for English labels
     
     // Get container dimensions to use full available space
     const containerRect = container.getBoundingClientRect();
@@ -390,9 +380,7 @@ function renderDiagram(solution) {
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    if (isRTL) {
-        svg.setAttribute('dir', 'rtl');
-    }
+    // Always LTR for English labels (project/curtain names can be in Hebrew but are handled by browser)
     
     // Define defs for patterns (dashed lines)
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -497,9 +485,7 @@ function renderDiagram(solution) {
     bgRect.setAttribute('fill', 'white');
     bgRect.setAttribute('stroke', 'none');
     svg.appendChild(bgRect);
-    if (isRTL) {
-        totalWidthLabel.setAttribute('direction', 'rtl');
-    }
+    // Always LTR for English labels
     totalWidthLabel.textContent = labelText;
     svg.appendChild(totalWidthLabel);
     
@@ -583,14 +569,12 @@ function renderDiagram(solution) {
         const foldLabelY = startY - 2; // Just above the panel top edge
         leftFoldLabel.setAttribute('y', foldLabelY);
         // For inner panels, use 'middle' alignment to prevent overlap
-        const labelAnchor = (!isOuter) ? 'middle' : (isRTL ? 'end' : 'middle');
+        const labelAnchor = (!isOuter) ? 'middle' : 'middle';
         leftFoldLabel.setAttribute('text-anchor', labelAnchor);
         leftFoldLabel.setAttribute('font-size', '10');
         leftFoldLabel.setAttribute('font-weight', '600');
         leftFoldLabel.setAttribute('fill', '#666');
-        if (isRTL) {
-            leftFoldLabel.setAttribute('direction', 'rtl');
-        }
+        // Always LTR for English labels
         leftFoldLabel.textContent = leftLabelText;
         svg.appendChild(leftFoldLabel);
         
@@ -615,9 +599,7 @@ function renderDiagram(solution) {
         rightFoldLabel.setAttribute('font-size', '10');
         rightFoldLabel.setAttribute('font-weight', '600');
         rightFoldLabel.setAttribute('fill', '#666');
-        if (isRTL) {
-            rightFoldLabel.setAttribute('direction', 'rtl');
-        }
+        // Always LTR for English labels
         if (isOuter && i === 0) {
             rightFoldLabel.textContent = `40 mm`;
         } else if (isOuter && i === solution.parts - 1) {
@@ -650,9 +632,7 @@ function renderDiagram(solution) {
         netWidthLabel.setAttribute('font-size', '10');
         netWidthLabel.setAttribute('font-weight', '600');
         netWidthLabel.setAttribute('fill', '#666');
-        if (isRTL) {
-            netWidthLabel.setAttribute('direction', 'rtl');
-        }
+        // Always LTR for English labels
         // Display only in mm
         netWidthLabel.textContent = `${solution.netWidth.toFixed(1)} mm`;
         svg.appendChild(netWidthLabel);
@@ -665,9 +645,7 @@ function renderDiagram(solution) {
         panelWidthLabel.setAttribute('font-size', '12');
         panelWidthLabel.setAttribute('font-weight', '600');
         panelWidthLabel.setAttribute('fill', '#000');
-        if (isRTL) {
-            panelWidthLabel.setAttribute('direction', 'rtl');
-        }
+        // Always LTR for English labels
         // Display only the number, without "Panel Width" text
         panelWidthLabel.textContent = `${totalWidth.toFixed(1)} mm`;
         svg.appendChild(panelWidthLabel);
