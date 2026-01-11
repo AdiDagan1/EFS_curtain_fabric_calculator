@@ -318,12 +318,12 @@ function renderDiagram(solution) {
     const curtainHeightMm = state.curtainHeight;
     
     // Scale to fit container (use full available space, maximize scale)
-    const margin = 100; // Margins for labels
+    const margin = 60; // Reduced margins for labels to maximize diagram size
     const availableWidth = maxWidth - margin * 2 - (solution.parts - 1) * gapPixels;
     const availableHeight = maxHeight - margin * 2;
     const scaleX = availableWidth / totalWidthMm;
     const scaleY = availableHeight / curtainHeightMm;
-    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit everything, but maximize it
+    const scale = Math.min(scaleX, scaleY) * 0.95; // Use 95% of available space to ensure everything fits
     
     // Calculate dimensions in pixels (all in mm, scale directly)
     const panelHeight = curtainHeightMm * scale;
