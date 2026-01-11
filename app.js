@@ -215,10 +215,12 @@ function findOptimalSolution() {
                 continue;
             }
             
-            // Calculate net width per panel using the correct formula (all in mm)
-            // Total curtain width = 2 * (netWidth + OUTER_FOLD_MM) + (parts - 2) * (netWidth + INNER_FOLD_MM)
-            // Solving for netWidth: netWidth = (totalCurtainWidth - 2 * OUTER_FOLD_MM - (parts - 2) * INNER_FOLD_MM) / parts
-            let netWidth = (totalCurtainWidth - 2 * OUTER_FOLD_MM - (parts - 2) * INNER_FOLD_MM) / parts;
+            // Calculate net width per panel
+            // The totalCurtainWidth is the NET width (after all folds)
+            // All panels have the same net width after folding
+            // So: totalCurtainWidth (net) = parts * netWidth
+            // Therefore: netWidth = totalCurtainWidth / parts
+            let netWidth = totalCurtainWidth / parts;
             
             // Check for invalid netWidth (negative or zero)
             if (netWidth <= 0) {
