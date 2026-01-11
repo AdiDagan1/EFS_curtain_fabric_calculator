@@ -331,6 +331,10 @@ function renderDiagram(solution) {
     const t = translations.en;
     const isRTL = false; // Always LTR for English labels
     
+    // Get project and curtain names early (before using them in viewBox calculation)
+    const projectName = state.projectName.trim() || '';
+    const curtainName = state.curtainName.trim() || '';
+    
     // Get container dimensions to use full available space
     const containerRect = container.getBoundingClientRect();
     const maxWidth = containerRect.width || 1200; // Fallback if container not ready
@@ -427,8 +431,7 @@ function renderDiagram(solution) {
     svg.appendChild(heightLabel);
     
     // Add project name and curtain name at the top of SVG (for PDF export with Unicode support)
-    const projectName = state.projectName.trim() || '';
-    const curtainName = state.curtainName.trim() || '';
+    // projectName and curtainName are already defined above
     let nameY = -25; // Position above total width line
     if (projectName) {
         const projectNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
