@@ -710,20 +710,15 @@ function exportToPDF() {
     pdf.setLineWidth(0.5);
     pdf.line(heightLineX, startY, heightLineX, startY + panelHeight);
     
-    // Height label (rotated) - display only in mm
-    // Add label next to height line in PDF
-    pdf.setFontSize(10);
+    // Height label (rotated) - display only in mm, positioned next to the line
+    pdf.setFontSize(9);
     pdf.setTextColor(0, 0, 0);
     const heightText = `${state.curtainHeight.toFixed(0)} mm`;
-    // Draw rotated text
-    pdf.text(heightText, heightLineX - 8, startY + panelHeight / 2, {
+    // Draw rotated text next to the height line (to the left of it)
+    // Position it so it's visible and close to the line
+    pdf.text(heightText, heightLineX - 3, startY + panelHeight / 2, {
         angle: 90,
         align: 'center'
-    });
-    // Also add a horizontal label for better visibility
-    pdf.setFontSize(9);
-    pdf.text(heightText, heightLineX - 15, startY - 5, {
-        align: 'left'
     });
     
     // Draw total width line
@@ -761,24 +756,24 @@ function exportToPDF() {
         
         if (isOuter) {
             if (i === 0) {
-                // Left outer: 140mm fold on left, 40mm fold on right
-                leftFoldX = currentX;
-                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale;
-                netWidthStartX = currentX + OUTER_FOLD_MM * scale;
-                netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
+                // Left outer: 140mm fold on left (moved right to match spacing), 40mm fold on right
+                leftFoldX = currentX + OUTER_FOLD_MM * scale; // 140mm from left edge (moved right)
+                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
+                netWidthStartX = leftFoldX; // Start after the 140mm fold line
+                netWidthEndX = rightFoldX; // End before the 40mm fold line
             } else {
                 // Right outer: 40mm fold on left, 140mm fold on right
-                leftFoldX = currentX;
-                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale;
-                netWidthStartX = currentX + INNER_FOLD_MM * scale;
-                netWidthEndX = currentX + panelWidth - OUTER_FOLD_MM * scale;
+                leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
+                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale; // 140mm from right edge
+                netWidthStartX = leftFoldX; // Start after the 40mm fold line
+                netWidthEndX = rightFoldX; // End before the 140mm fold line
             }
         } else {
             // Inner panel: 40mm on each side
-            leftFoldX = currentX;
-            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale;
-            netWidthStartX = currentX + INNER_FOLD_MM * scale;
-            netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
+            leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
+            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
+            netWidthStartX = leftFoldX; // Start after the 40mm fold line
+            netWidthEndX = rightFoldX; // End before the 40mm fold line
         }
         
         // Draw dashed lines along the length of the panel (left and right edges)
@@ -795,12 +790,15 @@ function exportToPDF() {
         pdf.setFontSize(8);
         const foldAlign = isRTL ? 'right' : 'center';
         if (isOuter && i === 0) {
-            pdf.text(`140 mm`, leftFoldX, startY - 2, { align: foldAlign });
+            // Left outer: label "140 mm" at left edge (currentX), label "40 mm" at right fold line
+            pdf.text(`140 mm`, currentX, startY - 2, { align: foldAlign });
             pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
         } else if (isOuter && i === solution.parts - 1) {
+            // Right outer: label "40 mm" at left fold line, label "140 mm" at right edge
             pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
-            pdf.text(`140 mm`, rightFoldX, startY - 2, { align: foldAlign });
-    } else {
+            pdf.text(`140 mm`, currentX + panelWidth, startY - 2, { align: foldAlign });
+        } else {
+            // Inner: labels at fold lines
             pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
             pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
         }
