@@ -442,32 +442,28 @@ function renderDiagram(solution) {
     svg.appendChild(heightLabel);
     
     // Add project name and curtain name at the center top of SVG (for PDF export with Unicode support)
-    // projectName and curtainName are already defined above
-    // Position them centered above the diagram
+    // Format: "Project - Curtain Name"
     const centerX = startX + totalWidthPx / 2; // Center of the diagram
-    let nameY = -30; // Position above the diagram
-    if (projectName) {
-        const projectNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        projectNameText.setAttribute('x', centerX);
-        projectNameText.setAttribute('y', nameY);
-        projectNameText.setAttribute('text-anchor', 'middle'); // Center-aligned
-        projectNameText.setAttribute('font-size', '16');
-        projectNameText.setAttribute('font-weight', 'bold');
-        projectNameText.setAttribute('fill', '#000');
-        projectNameText.textContent = projectName;
-        svg.appendChild(projectNameText);
-        nameY -= 20; // 20px spacing between names
+    const nameY = -30; // Position above the diagram
+    let titleText = '';
+    if (projectName && curtainName) {
+        titleText = `${projectName} - ${curtainName}`;
+    } else if (projectName) {
+        titleText = projectName;
+    } else if (curtainName) {
+        titleText = curtainName;
     }
-    if (curtainName) {
-        const curtainNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        curtainNameText.setAttribute('x', centerX);
-        curtainNameText.setAttribute('y', nameY);
-        curtainNameText.setAttribute('text-anchor', 'middle'); // Center-aligned
-        curtainNameText.setAttribute('font-size', '16');
-        curtainNameText.setAttribute('font-weight', 'bold');
-        curtainNameText.setAttribute('fill', '#000');
-        curtainNameText.textContent = curtainName;
-        svg.appendChild(curtainNameText);
+    
+    if (titleText) {
+        const titleTextElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        titleTextElement.setAttribute('x', centerX);
+        titleTextElement.setAttribute('y', nameY);
+        titleTextElement.setAttribute('text-anchor', 'middle'); // Center-aligned
+        titleTextElement.setAttribute('font-size', '16');
+        titleTextElement.setAttribute('font-weight', 'bold');
+        titleTextElement.setAttribute('fill', '#000');
+        titleTextElement.textContent = titleText;
+        svg.appendChild(titleTextElement);
     }
     
     // Draw panels
@@ -635,14 +631,40 @@ function renderDiagram(solution) {
         currentX += panelWidth + gapPx;
     }
     
-    // Add detail view arrows and image reference (like technical drawing)
-    // Arrow 1: From right corner of the curtain (last panel) to image "1"
-    const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
-    const lastPanelY = startY;
-    const image1X = startX + totalWidthPx + viewBoxPaddingX - 50; // Position for image "1" on the right
-    const image1Y = startY + panelHeight / 2; // Middle height
+    // Draw total width line below the diagram (after panel width labels)
+    // Panel width labels are at: startY + panelHeight + 25
+    const panelWidthLabelY = startY + panelHeight + 25; // Y position of panel width labels
+    const totalWidthLineY = panelWidthLabelY + 20; // Below panel width labels (20px spacing)
+    const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    totalWidthLine.setAttribute('x1', startX);
+    totalWidthLine.setAttribute('y1', totalWidthLineY);
+    totalWidthLine.setAttribute('x2', startX + totalWidthPx);
+    totalWidthLine.setAttribute('y2', totalWidthLineY);
+    totalWidthLine.setAttribute('stroke', '#000');
+    totalWidthLine.setAttribute('stroke-width', '2');
+    svg.appendChild(totalWidthLine);
     
-    // Draw arrow from right corner of last panel to image "1"
+    // Total width label (centered) - display only in mm, positioned above the line
+    const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const labelText = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
+    totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
+    totalWidthLabel.setAttribute('y', totalWidthLineY - 5);
+    totalWidthLabel.setAttribute('text-anchor', 'middle');
+    totalWidthLabel.setAttribute('font-size', '14');
+    totalWidthLabel.setAttribute('font-weight', '600');
+    totalWidthLabel.setAttribute('fill', '#000');
+    totalWidthLabel.textContent = labelText;
+    svg.appendChild(totalWidthLabel);
+    
+    // Add detail view arrows and image reference (like technical drawing)
+    // Arrow 1: From right corner of the curtain (last panel) to image "1" - shorter arrow
+    const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
+    const lastPanelY = startY + panelHeight; // Bottom of last panel
+    // Position image "1" closer to the panel (shorter arrow) and ensure it's within bounds
+    const image1X = lastPanelX + 30; // Short distance from panel edge (30px instead of 50)
+    const image1Y = lastPanelY - 15; // Slightly above bottom
+    
+    // Draw short arrow from right corner of last panel to image "1"
     const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     arrow1.setAttribute('x1', lastPanelX);
     arrow1.setAttribute('y1', lastPanelY);
@@ -653,20 +675,45 @@ function renderDiagram(solution) {
     arrow1.setAttribute('marker-end', 'url(#arrowhead)');
     svg.appendChild(arrow1);
     
-    // Arrow 2: From one of the panel connections (between panels) to image "1"
+    // Arrow 2: From one of the panel connections (between panels) to image "1" below the diagram
     // Use the connection between first and second panel
     if (solution.parts > 1) {
         const connectionX = startX + outerPanelWidth; // Between first and second panel
-        const connectionY = startY + panelHeight / 3; // Upper third of panel height
+        const connectionY = startY + panelHeight; // Bottom of panels
+        // Position image "1" below the diagram, below total width line
+        const image2X = connectionX; // Same X as connection
+        const image2Y = totalWidthLineY + 30; // Below total width line
+        
         const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         arrow2.setAttribute('x1', connectionX);
         arrow2.setAttribute('y1', connectionY);
-        arrow2.setAttribute('x2', image1X);
-        arrow2.setAttribute('y2', image1Y);
+        arrow2.setAttribute('x2', image2X);
+        arrow2.setAttribute('y2', image2Y);
         arrow2.setAttribute('stroke', '#000');
         arrow2.setAttribute('stroke-width', '1.5');
         arrow2.setAttribute('marker-end', 'url(#arrowhead)');
         svg.appendChild(arrow2);
+        
+        // Add image "1" label/circle below the diagram
+        const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        image2Circle.setAttribute('cx', image2X);
+        image2Circle.setAttribute('cy', image2Y);
+        image2Circle.setAttribute('r', '15');
+        image2Circle.setAttribute('fill', 'white');
+        image2Circle.setAttribute('stroke', '#000');
+        image2Circle.setAttribute('stroke-width', '2');
+        svg.appendChild(image2Circle);
+        
+        const image2Label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        image2Label.setAttribute('x', image2X);
+        image2Label.setAttribute('y', image2Y);
+        image2Label.setAttribute('text-anchor', 'middle');
+        image2Label.setAttribute('dominant-baseline', 'middle');
+        image2Label.setAttribute('font-size', '14');
+        image2Label.setAttribute('font-weight', 'bold');
+        image2Label.setAttribute('fill', '#000');
+        image2Label.textContent = '1';
+        svg.appendChild(image2Label);
     }
     
     // Add arrowhead marker definition
@@ -686,7 +733,7 @@ function renderDiagram(solution) {
         existingDefs.appendChild(marker);
     }
     
-    // Add image "1" label/circle at the target position
+    // Add image "1" label/circle at the target position (for external connection)
     const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     image1Circle.setAttribute('cx', image1X);
     image1Circle.setAttribute('cy', image1Y);
