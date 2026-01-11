@@ -67,11 +67,24 @@
                 <div id="results" class="results">
                     <p class="placeholder">Enter dimensions and fabric inventory to see results</p>
                 </div>
+                <div class="diagram-controls">
+                    <div class="language-selector">
+                        <label for="diagram-language">Diagram Language:</label>
+                        <select id="diagram-language">
+                            <option value="en">English</option>
+                            <option value="he">Hebrew</option>
+                            <option value="ar">Arabic</option>
+                            <option value="th">Thai</option>
+                        </select>
+                    </div>
+                    <button id="export-pdf-btn" class="btn-export" disabled>Export to PDF</button>
+                </div>
                 <div id="diagram-container" class="diagram-container"></div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

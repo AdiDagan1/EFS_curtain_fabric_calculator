@@ -186,6 +186,66 @@ header h1 {
     margin-bottom: 20px;
 }
 
+.diagram-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.language-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.language-selector label {
+    font-weight: 600;
+    color: #555;
+}
+
+.language-selector select {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 1em;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.language-selector select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-export {
+    padding: 10px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-export:hover:not(:disabled) {
+    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-export:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .diagram-container {
     background: white;
     border: 2px solid #e0e0e0;
@@ -193,6 +253,14 @@ header h1 {
     padding: 30px;
     min-height: 400px;
     overflow-x: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.diagram-svg {
+    display: block;
+    margin: 0 auto;
 }
 
 .diagram {
@@ -211,22 +279,11 @@ header h1 {
     position: relative;
 }
 
-.panel {
-    position: relative;
-    background: #e3f2fd;
-    border: 2px solid #2196f3;
-    border-radius: 4px;
-    min-width: 80px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 8px 5px;
-    flex-shrink: 0;
-}
-
-.panel.outer {
-    background: #fff3e0;
-    border-color: #ff9800;
+/* SVG-based diagram styles - panels are now SVG elements */
+.panel-svg {
+    fill: white;
+    stroke: #000;
+    stroke-width: 2;
 }
 
 .panel-label {
