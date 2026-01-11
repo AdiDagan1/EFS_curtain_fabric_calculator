@@ -382,9 +382,10 @@ function renderDiagram(solution) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    // ViewBox: includes space above panels (from -15 for total width line to startY), panels, and space below
-    // Adjust viewBox to start at negative Y to include total width line
-    svg.setAttribute('viewBox', `0 -15 ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + 15}`);
+    // ViewBox: includes space above for project/curtain names, total width line, panels, and space below
+    // Adjust viewBox to start at negative Y to include all content above panels
+    const topSpace = projectName || curtainName ? 50 : 20; // Space for names and total width line
+    svg.setAttribute('viewBox', `0 -${topSpace} ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + topSpace}`);
     // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
@@ -437,8 +438,37 @@ function renderDiagram(solution) {
     heightLabel.textContent = `${state.curtainHeight.toFixed(0)} mm`;
     svg.appendChild(heightLabel);
     
+    // Add project name and curtain name at the top of SVG (for PDF export with Unicode support)
+    const projectName = state.projectName.trim() || '';
+    const curtainName = state.curtainName.trim() || '';
+    let nameY = -25; // Position above total width line
+    if (projectName) {
+        const projectNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        projectNameText.setAttribute('x', startX + totalWidthPx / 2);
+        projectNameText.setAttribute('y', nameY);
+        projectNameText.setAttribute('text-anchor', 'middle');
+        projectNameText.setAttribute('font-size', '16');
+        projectNameText.setAttribute('font-weight', 'bold');
+        projectNameText.setAttribute('fill', '#000');
+        projectNameText.textContent = projectName;
+        svg.appendChild(projectNameText);
+        nameY -= 12;
+    }
+    if (curtainName) {
+        const curtainNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        curtainNameText.setAttribute('x', startX + totalWidthPx / 2);
+        curtainNameText.setAttribute('y', nameY);
+        curtainNameText.setAttribute('text-anchor', 'middle');
+        curtainNameText.setAttribute('font-size', '16');
+        curtainNameText.setAttribute('font-weight', 'bold');
+        curtainNameText.setAttribute('fill', '#000');
+        curtainNameText.textContent = curtainName;
+        svg.appendChild(curtainNameText);
+        nameY -= 12;
+    }
+    
     // Draw total width line (above fold labels) - moved higher to be above fold measurements
-    const totalWidthLineY = -5; // Positioned well above fold labels (which are at startY-2=8)
+    const totalWidthLineY = nameY - 5; // Positioned below names, above fold labels
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
@@ -448,18 +478,29 @@ function renderDiagram(solution) {
     totalWidthLine.setAttribute('stroke-width', '2');
     svg.appendChild(totalWidthLine);
     
-    // Total width label (centered) - display only in mm, positioned above the line
+    // Total width label (centered) - display only in mm, positioned above the line with white background
     const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const labelText = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
     totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
     totalWidthLabel.setAttribute('y', totalWidthLineY - 8);
     totalWidthLabel.setAttribute('text-anchor', 'middle');
     totalWidthLabel.setAttribute('font-size', '14');
     totalWidthLabel.setAttribute('font-weight', '600');
     totalWidthLabel.setAttribute('fill', '#000');
+    // Add white background rectangle behind text to prevent cutting
+    const textBBox = { width: labelText.length * 8, height: 16 }; // Approximate text dimensions
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bgRect.setAttribute('x', startX + totalWidthPx / 2 - textBBox.width / 2 - 5);
+    bgRect.setAttribute('y', totalWidthLineY - 8 - textBBox.height + 4);
+    bgRect.setAttribute('width', textBBox.width + 10);
+    bgRect.setAttribute('height', textBBox.height);
+    bgRect.setAttribute('fill', 'white');
+    bgRect.setAttribute('stroke', 'none');
+    svg.appendChild(bgRect);
     if (isRTL) {
         totalWidthLabel.setAttribute('direction', 'rtl');
     }
-    totalWidthLabel.textContent = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
+    totalWidthLabel.textContent = labelText;
     svg.appendChild(totalWidthLabel);
     
     // Draw panels
@@ -703,25 +744,9 @@ async function exportToPDF() {
         const pdfHeight = 210;
         const margin = 5; // Minimal margin to maximize diagram size
         
-        // Add project name and curtain name at the top of PDF (Hebrew, no labels)
-        pdf.setFontSize(14);
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(0, 0, 0);
-        const projectName = state.projectName.trim() || '';
-        const curtainName = state.curtainName.trim() || '';
-        
-        // Add names without labels, in Hebrew direction (RTL)
-        pdf.setR2L(true); // Enable RTL for Hebrew text
-        let yPos = 10;
-        if (projectName) {
-            pdf.text(projectName, pdfWidth - margin, yPos, { align: 'right' }); // RTL for Hebrew
-            yPos += 8;
-        }
-        if (curtainName) {
-            pdf.text(curtainName, pdfWidth - margin, yPos, { align: 'right' }); // RTL for Hebrew
-            yPos += 8;
-        }
-        const topMargin = yPos > 10 ? yPos + 5 : 10; // Adjust top margin based on content
+        // Project name and curtain name are now included in the SVG (captured by html2canvas)
+        // No need to add them separately to PDF - they're already in the image
+        const topMargin = 5; // Minimal top margin since names are in SVG
         
         // Calculate dimensions to fit canvas in PDF - maximize size
         const canvasWidth = canvas.width;
