@@ -95,82 +95,76 @@ function calculate() {
     renderDiagram(solution);
 }
 
-// Find optimal solution
+/**
+ * Find the optimal fabric solution with minimum waste
+ * 
+ * Algorithm:
+ * 1. Loop over all fabric widths that exist in inventory
+ * 2. For each fabric width, loop over all valid parts values (2 to inventory[fabricWidth])
+ * 3. For each combination, validate folding rules and calculate waste
+ * 4. Select the solution with minimum total waste
+ * 
+ * @returns {Object|null} Solution object with fabricWidth, parts, netWidth, outerPanelWidth, innerPanelWidth, waste
+ */
 function findOptimalSolution() {
-    const availableWidths = Object.keys(state.fabricInventory)
-        .map(w => parseInt(w))
-        .filter(w => state.fabricInventory[w] > 0)
-        .sort((a, b) => b - a); // Sort descending
-
-    if (availableWidths.length === 0) {
-        return null;
-    }
-
+    const totalCurtainWidth = state.curtainWidth; // in cm
+    const fabricWidths = [2100, 2000, 1900, 1500]; // in mm
+    const inventory = state.fabricInventory;
+    
     let bestSolution = null;
     let minWaste = Infinity;
-
-    // Try different numbers of panels (minimum 2, maximum reasonable based on curtain width)
-    const maxPanels = Math.min(20, Math.ceil(state.curtainWidth / 100));
     
-    for (let numPanels = 2; numPanels <= maxPanels; numPanels++) {
-        // Calculate required net width per panel
-        const netWidthPerPanel = state.curtainWidth / numPanels;
-
-        // Calculate required total widths (in cm)
-        const outerPanelWidth = netWidthPerPanel + 180; // 140 + 40
-        const innerPanelWidth = netWidthPerPanel + 80;  // 40 + 40
-
-        // Try each available fabric width
-        for (const fabricWidthMm of availableWidths) {
-            // Convert fabric width from mm to cm
-            const fabricWidthCm = fabricWidthMm / 10;
+    // Loop over all fabric widths that exist in inventory
+    for (const fabricWidthMm of fabricWidths) {
+        const availableRolls = inventory[fabricWidthMm];
+        
+        // Skip if no inventory available
+        if (availableRolls === 0) {
+            continue;
+        }
+        
+        const fabricWidthCm = fabricWidthMm / 10; // Convert mm to cm
+        
+        // For each fabric width, loop over all valid parts values
+        // From 2 up to inventory[fabricWidth]
+        for (let parts = 2; parts <= availableRolls; parts++) {
+            // Calculate net width per panel using the correct formula
+            // netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts
+            const netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts;
             
-            // Calculate waste based on fabric utilization
-            // If panel width <= fabric width, waste is the difference
-            // If panel width > fabric width, we use a heuristic (prefer wider fabrics)
-            let outerWaste = 0;
-            let innerWaste = 0;
-            
-            if (fabricWidthCm >= outerPanelWidth) {
-                outerWaste = fabricWidthCm - outerPanelWidth;
-            } else {
-                // Panel is wider than fabric - would need multiple pieces
-                // Use a penalty based on how much wider
-                outerWaste = (outerPanelWidth - fabricWidthCm) * 0.1; // Penalty factor
-            }
-            
-            if (fabricWidthCm >= innerPanelWidth) {
-                innerWaste = fabricWidthCm - innerPanelWidth;
-            } else {
-                // Panel is wider than fabric - would need multiple pieces
-                innerWaste = (innerPanelWidth - fabricWidthCm) * 0.1; // Penalty factor
-            }
-            
-            const totalWaste = 2 * outerWaste + (numPanels - 2) * innerWaste;
-
-            // Check inventory availability
-            const requiredRolls = numPanels;
-            if (state.fabricInventory[fabricWidthMm] < requiredRolls) {
+            // Reject if netWidth is not an integer
+            if (!Number.isInteger(netWidth)) {
                 continue;
             }
-
+            
+            // Calculate panel total widths
+            const outerPanelWidth = netWidth + 180; // 140 (outer edge) + 40 (inner edge)
+            const innerPanelWidth = netWidth + 80;  // 40 on each side
+            
+            // Reject if panels exceed fabric width
+            if (outerPanelWidth > fabricWidthCm || innerPanelWidth > fabricWidthCm) {
+                continue;
+            }
+            
+            // Calculate fabric waste per panel, then sum
+            // waste = 2 * (fabricWidth - outerPanelWidth) + (parts - 2) * (fabricWidth - innerPanelWidth)
+            const waste = 2 * (fabricWidthCm - outerPanelWidth) + (parts - 2) * (fabricWidthCm - innerPanelWidth);
+            
             // Check if this is a better solution (lower waste is better)
-            if (totalWaste < minWaste || (totalWaste === minWaste && !bestSolution)) {
-                minWaste = totalWaste;
+            if (waste < minWaste) {
+                minWaste = waste;
                 bestSolution = {
                     fabricWidth: fabricWidthMm,
-                    numPanels: numPanels,
-                    netWidthPerPanel: netWidthPerPanel,
+                    parts: parts,
+                    netWidth: netWidth,
                     outerPanelWidth: outerPanelWidth,
                     innerPanelWidth: innerPanelWidth,
-                    totalWaste: totalWaste,
-                    outerWaste: outerWaste,
-                    innerWaste: innerWaste
+                    waste: waste
                 };
             }
         }
     }
-
+    
     return bestSolution;
 }
 
@@ -183,18 +177,21 @@ function displayResults(solution) {
             <strong>Selected Fabric Width:</strong> ${solution.fabricWidth} mm
         </div>
         <div class="result-item">
-            <strong>Number of Panels:</strong> ${solution.numPanels}
+            <strong>Number of Panels:</strong> ${solution.parts}
+        </div>
+        <div class="result-item">
+            <strong>Net Width per Panel:</strong> ${solution.netWidth.toFixed(1)} cm
         </div>
         <div class="result-item">
             <strong>Outer Panel Width:</strong> ${solution.outerPanelWidth.toFixed(1)} cm
-            <br><span style="margin-left: 184px; color: #666;">(Net: ${solution.netWidthPerPanel.toFixed(1)} cm)</span>
+            <br><span style="margin-left: 184px; color: #666;">(Net: ${solution.netWidth.toFixed(1)} cm after folding)</span>
         </div>
         <div class="result-item">
             <strong>Inner Panel Width:</strong> ${solution.innerPanelWidth.toFixed(1)} cm
-            <br><span style="margin-left: 184px; color: #666;">(Net: ${solution.netWidthPerPanel.toFixed(1)} cm)</span>
+            <br><span style="margin-left: 184px; color: #666;">(Net: ${solution.netWidth.toFixed(1)} cm after folding)</span>
         </div>
         <div class="result-item">
-            <strong>Total Fabric Waste:</strong> ${solution.totalWaste.toFixed(1)} cm
+            <strong>Total Fabric Waste:</strong> ${solution.waste.toFixed(1)} cm
         </div>
     `;
     
@@ -227,8 +224,8 @@ function renderDiagram(solution) {
     panelContainer.style.marginBottom = '30px';
 
     // Create panels
-    for (let i = 0; i < solution.numPanels; i++) {
-        const isOuter = i === 0 || i === solution.numPanels - 1;
+    for (let i = 0; i < solution.parts; i++) {
+        const isOuter = i === 0 || i === solution.parts - 1;
         const panelWidthPx = isOuter ? outerPanelWidthPx : innerPanelWidthPx;
         const totalWidth = isOuter ? solution.outerPanelWidth : solution.innerPanelWidth;
 
@@ -281,11 +278,11 @@ function renderDiagram(solution) {
         // Net width line (horizontal dashed line in the middle)
         const netWidthLine = document.createElement('div');
         netWidthLine.className = 'net-width-line';
-        netWidthLine.style.width = `${solution.netWidthPerPanel * scale}px`;
+        netWidthLine.style.width = `${solution.netWidth * scale}px`;
         netWidthLine.style.left = `${(isOuter ? 140 : 40) * scale}px`;
         const netWidthLabel = document.createElement('div');
         netWidthLabel.className = 'net-width-label';
-        netWidthLabel.textContent = `${solution.netWidthPerPanel.toFixed(1)} cm (net)`;
+        netWidthLabel.textContent = `${solution.netWidth.toFixed(1)} cm (net)`;
         netWidthLine.appendChild(netWidthLabel);
         panelContent.appendChild(netWidthLine);
 
@@ -306,7 +303,7 @@ function renderDiagram(solution) {
     totalWidthLine.style.position = 'absolute';
     totalWidthLine.style.top = '-30px';
     totalWidthLine.style.left = '0';
-    totalWidthLine.style.width = `${2 * outerPanelWidthPx + (solution.numPanels - 2) * innerPanelWidthPx + (solution.numPanels - 1) * gap}px`;
+    totalWidthLine.style.width = `${2 * outerPanelWidthPx + (solution.parts - 2) * innerPanelWidthPx + (solution.parts - 1) * gap}px`;
     const totalWidthLabel = document.createElement('div');
     totalWidthLabel.className = 'total-width-label';
     totalWidthLabel.textContent = `Total Width: ${state.curtainWidth} cm`;
