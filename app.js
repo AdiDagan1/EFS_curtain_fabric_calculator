@@ -351,8 +351,16 @@ function renderDiagram(solution) {
     const calculatedPanelWidth = Math.floor((availableWidth - (maxParts - 1) * gapPixels) / maxParts);
     const FIXED_PANEL_WIDTH = Math.max(100, calculatedPanelWidth); // Minimum 100px, calculated based on 5 parts
     
-    // Fixed panel height - use reasonable fixed height
-    const FIXED_PANEL_HEIGHT = 200; // Fixed height in pixels for all panels
+    // Fixed panel height - 70% of PDF page height (A4 landscape = 210mm)
+    // A4 landscape height = 210mm, 70% = 147mm
+    // Convert to pixels: at 96 DPI, 1mm ≈ 3.78px, so 147mm ≈ 555px
+    // But calculate based on container height to ensure it fits
+    // Use 70% of available container height, with minimum based on PDF
+    const pdfHeightMm = 210; // A4 landscape height in mm
+    const pdfHeightPx = pdfHeightMm * 3.78; // Convert mm to pixels (approximate)
+    const minPanelHeight = Math.floor(pdfHeightPx * 0.7); // 70% of PDF height as minimum
+    const containerBasedHeight = Math.floor(maxHeight * 0.7); // 70% of container height
+    const FIXED_PANEL_HEIGHT = Math.max(minPanelHeight, containerBasedHeight); // Use the larger value
     
     // Use fixed dimensions for display (calculation remains unchanged)
     const panelHeight = FIXED_PANEL_HEIGHT;
@@ -677,18 +685,21 @@ function renderDiagram(solution) {
     arrow1.setAttribute('marker-end', 'url(#arrowhead)');
     svg.appendChild(arrow1);
     
-    // Arrow 2: From inner edge of the rightmost outer panel (last panel) going upward
-    // Start from the inner edge (left side) of the last panel, at the top
+    // Arrow 2: From inner edge (top-left corner) of the rightmost outer panel (last panel) going upward
+    // Start from the inner edge (left side) of the last panel, at the top corner
     if (solution.parts > 1) {
         const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
-        const connectionY = startY + 20; // Upper part of panel (20px from top)
+        const connectionY = startY; // Top corner of panel (inner edge, top)
+        // Calculate arrow length and extend it by 20%
+        const baseArrowLength = 100; // Base length
+        const extendedArrowLength = baseArrowLength * 1.2; // Extend by 20%
         // Position image "2.png" above the diagram, further to the right, avoiding the title
-        const image2X = lastPanelInnerEdgeX + 100; // Further to the right of the inner edge (100px)
+        const image2X = lastPanelInnerEdgeX + extendedArrowLength; // Extended distance from inner edge
         const image2Y = -15; // Above the diagram, below title (title is at Y = -30), with more spacing
         
         const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         arrow2.setAttribute('x1', lastPanelInnerEdgeX);
-        arrow2.setAttribute('y1', connectionY);
+        arrow2.setAttribute('y1', connectionY); // Top corner
         arrow2.setAttribute('x2', image2X);
         arrow2.setAttribute('y2', image2Y);
         arrow2.setAttribute('stroke', '#000');
@@ -706,9 +717,10 @@ function renderDiagram(solution) {
         image2Circle.setAttribute('stroke-width', '2');
         svg.appendChild(image2Circle);
         
-        // Add image 2.png inside the circle
+        // Add image 2.png inside the circle - use both href and xlink:href for compatibility
         const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        image2Img.setAttribute('href', '2.png');
+        image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '2.png'); // Use xlink:href for better compatibility
+        image2Img.setAttribute('href', '2.png'); // Also set href for modern browsers
         image2Img.setAttribute('x', image2X - 25);
         image2Img.setAttribute('y', image2Y - 25);
         image2Img.setAttribute('width', '50');
@@ -744,9 +756,10 @@ function renderDiagram(solution) {
     image1Circle.setAttribute('stroke-width', '2');
     svg.appendChild(image1Circle);
     
-    // Add image 1.jpg inside the circle
+    // Add image 1.jpg inside the circle - use both href and xlink:href for compatibility
     const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    image1Img.setAttribute('href', '1.jpg');
+    image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '1.jpg'); // Use xlink:href for better compatibility
+    image1Img.setAttribute('href', '1.jpg'); // Also set href for modern browsers
     image1Img.setAttribute('x', image1X - 25);
     image1Img.setAttribute('y', image1Y - 25);
     image1Img.setAttribute('width', '50');
@@ -805,17 +818,34 @@ async function exportToPDF() {
             return new Promise((resolve) => {
                 const imgElement = new Image();
                 imgElement.crossOrigin = 'anonymous';
-                imgElement.onload = () => resolve();
-                imgElement.onerror = () => resolve(); // Continue even if image fails to load
-                const href = img.getAttribute('href') || img.getAttribute('xlink:href');
+                imgElement.onload = () => {
+                    // Image loaded successfully, update SVG image element
+                    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', imgElement.src);
+                    resolve();
+                };
+                imgElement.onerror = () => {
+                    // Image failed to load, but continue anyway
+                    console.warn('Image failed to load:', img.getAttribute('href') || img.getAttributeNS('http://www.w3.org/1999/xlink', 'href'));
+                    resolve();
+                };
+                // Try both href and xlink:href
+                const href = img.getAttribute('href') || 
+                            img.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ||
+                            img.getAttribute('xlink:href');
                 if (href) {
-                    imgElement.src = href;
+                    // Use absolute path if relative
+                    const imagePath = href.startsWith('http') ? href : 
+                                     (href.startsWith('/') ? href : `./${href}`);
+                    imgElement.src = imagePath;
                 } else {
                     resolve(); // No href, skip
                 }
             });
         });
         await Promise.all(imagePromises);
+        
+        // Give browser time to render images in SVG
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         // Convert SVG to canvas using html2canvas (supports Unicode)
         const canvas = await html2canvas(tempContainer, {
@@ -861,7 +891,7 @@ async function exportToPDF() {
             // Canvas is wider - fit to width (fill entire width)
             imgWidth = availableWidth;
             imgHeight = imgWidth / canvasAspectRatio;
-        } else {
+    } else {
             // Canvas is taller - fit to height (fill entire height)
             imgHeight = availableHeight;
             imgWidth = imgHeight * canvasAspectRatio;
