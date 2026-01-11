@@ -200,24 +200,25 @@ function findOptimalSolution() {
         // From 2 up to inventory[fabricWidth]
         for (let parts = 2; parts <= availableRolls; parts++) {
             // Calculate net width per panel using the correct formula
-            // netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts
-            let netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts;
+            // Total curtain width = 2 * (netWidth + 180) + (parts - 2) * (netWidth + 80)
+            // Solving for netWidth: netWidth = (totalCurtainWidth - 2 * 180 - (parts - 2) * 80) / parts
+            let netWidth = (totalCurtainWidth - 2 * 180 - (parts - 2) * 80) / parts;
             
             // Round netWidth to 1 decimal place (allow decimal values for real-world fabric cutting)
             netWidth = Math.round(netWidth * 10) / 10;
             
-            // Calculate panel total widths
-            const outerPanelWidth = netWidth + 180; // 140 (outer edge) + 40 (inner edge)
-            const innerPanelWidth = netWidth + 80;  // 40 on each side
+            // Calculate cut widths (different for outer and inner panels)
+            const outerCutWidth = netWidth + 180; // 140 (outer edge) + 40 (inner edge)
+            const innerCutWidth = netWidth + 80;  // 40 on each side
             
-            // Reject if panels exceed fabric width
-            if (outerPanelWidth > fabricWidthCm || innerPanelWidth > fabricWidthCm) {
+            // Validate that cut widths fit within fabric width
+            if (outerCutWidth > fabricWidthCm || innerCutWidth > fabricWidthCm) {
                 continue;
             }
             
             // Calculate fabric waste per panel, then sum
-            // waste = 2 * (fabricWidth - outerPanelWidth) + (parts - 2) * (fabricWidth - innerPanelWidth)
-            const waste = 2 * (fabricWidthCm - outerPanelWidth) + (parts - 2) * (fabricWidthCm - innerPanelWidth);
+            // waste = 2 * (fabricWidth - outerCutWidth) + (parts - 2) * (fabricWidth - innerCutWidth)
+            const waste = 2 * (fabricWidthCm - outerCutWidth) + (parts - 2) * (fabricWidthCm - innerCutWidth);
 
             // Check if this is a better solution (lower waste is better)
             if (waste < minWaste) {
@@ -226,8 +227,8 @@ function findOptimalSolution() {
                     fabricWidth: fabricWidthMm,
                     parts: parts,
                     netWidth: netWidth,
-                    outerPanelWidth: outerPanelWidth,
-                    innerPanelWidth: innerPanelWidth,
+                    outerPanelWidth: outerCutWidth,  // Use outerCutWidth
+                    innerPanelWidth: innerCutWidth,  // Use innerCutWidth
                     waste: waste
                 };
             }
