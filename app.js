@@ -359,17 +359,19 @@ function renderDiagram(solution) {
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    const totalHeightPx = panelHeight + 120; // Reduced space for labels to move content up
+    const totalHeightPx = panelHeight + 120; // Space for labels below panels
     
     // Create SVG element - use full container width
-    // Adjust viewBox to move content up and prevent cutting at bottom
-    const viewBoxPaddingX = 200; // Extra space for height indicator
-    const viewBoxPaddingY = 50; // Minimal top padding to move content up
+    // Set viewBox to anchor content to top with exactly 10px top margin
+    const viewBoxPaddingX = 200; // Extra space for height indicator on left
+    const topMargin = 10; // Exactly 10px top margin
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${totalHeightPx + viewBoxPaddingY}`);
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    // ViewBox: content starts at Y=0, total height includes top margin + content + bottom space
+    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${topMargin + totalHeightPx}`);
+    // Use YMin to align content to top instead of centering vertically
+    svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     if (isRTL) {
@@ -395,9 +397,9 @@ function renderDiagram(solution) {
     defs.appendChild(dashPattern);
     svg.appendChild(defs);
     
-    // Starting position (with margin for height indicator) - move up to prevent cutting
+    // Starting position - exactly 10px from top, with margin for height indicator on left
     const startX = 80;
-    const startY = 10; // Moved up significantly to prevent cutting at top and reduce gap
+    const startY = 10; // Exactly 10px from top edge of SVG
     
     // Draw height indicator (vertical line on the left)
     const heightLineY = startY;
