@@ -390,7 +390,9 @@ function renderDiagram(solution) {
     // ViewBox: includes space above for project/curtain names, panels, and space below for total width line and detail views
     // Adjust viewBox to start at negative Y to include all content above panels
     const topSpace = projectName || curtainName ? 60 : 20; // Space for names above
-    svg.setAttribute('viewBox', `0 -${topSpace} ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + topSpace}`);
+    // Increase viewBox width to include images on the right side
+    const extraRightSpace = 150; // Extra space for images on the right
+    svg.setAttribute('viewBox', `0 -${topSpace} ${totalWidthPx + viewBoxPaddingX + extraRightSpace} ${contentBottomY + topSpace}`);
     // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
@@ -657,14 +659,14 @@ function renderDiagram(solution) {
     svg.appendChild(totalWidthLabel);
     
     // Add detail view arrows and image reference (like technical drawing)
-    // Arrow 1: From right corner of the curtain (last panel) to image "1" - shorter arrow
+    // Arrow 1: From right corner of the curtain (last panel) to image "1" - further from diagram
     const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
     const lastPanelY = startY + panelHeight; // Bottom of last panel
-    // Position image "1" closer to the panel (shorter arrow) and ensure it's within bounds
-    const image1X = lastPanelX + 30; // Short distance from panel edge (30px instead of 50)
-    const image1Y = lastPanelY - 15; // Slightly above bottom
+    // Position image "1" further from the panel to avoid overlapping with diagram
+    const image1X = lastPanelX + 80; // Further distance from panel edge (80px)
+    const image1Y = lastPanelY - 20; // Further from bottom
     
-    // Draw short arrow from right corner of last panel to image "1"
+    // Draw arrow from right corner of last panel to image "1"
     const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     arrow1.setAttribute('x1', lastPanelX);
     arrow1.setAttribute('y1', lastPanelY);
@@ -680,9 +682,9 @@ function renderDiagram(solution) {
     if (solution.parts > 1) {
         const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
         const connectionY = startY + 20; // Upper part of panel (20px from top)
-        // Position image "2.png" above the diagram, to the right, avoiding the title
-        const image2X = lastPanelInnerEdgeX + 50; // To the right of the inner edge
-        const image2Y = -10; // Above the diagram, below title (title is at Y = -30)
+        // Position image "2.png" above the diagram, further to the right, avoiding the title
+        const image2X = lastPanelInnerEdgeX + 100; // Further to the right of the inner edge (100px)
+        const image2Y = -15; // Above the diagram, below title (title is at Y = -30), with more spacing
         
         const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         arrow2.setAttribute('x1', lastPanelInnerEdgeX);
@@ -797,11 +799,30 @@ async function exportToPDF() {
     tempContainer.appendChild(clonedSvg);
     
     try {
+        // Wait for images to load before capturing
+        const images = tempContainer.querySelectorAll('image');
+        const imagePromises = Array.from(images).map(img => {
+            return new Promise((resolve) => {
+                const imgElement = new Image();
+                imgElement.crossOrigin = 'anonymous';
+                imgElement.onload = () => resolve();
+                imgElement.onerror = () => resolve(); // Continue even if image fails to load
+                const href = img.getAttribute('href') || img.getAttribute('xlink:href');
+                if (href) {
+                    imgElement.src = href;
+                } else {
+                    resolve(); // No href, skip
+                }
+            });
+        });
+        await Promise.all(imagePromises);
+        
         // Convert SVG to canvas using html2canvas (supports Unicode)
         const canvas = await html2canvas(tempContainer, {
             backgroundColor: '#ffffff',
             scale: 2, // Higher quality
             useCORS: true,
+            allowTaint: true, // Allow loading external images
             logging: false
         });
         
