@@ -366,10 +366,12 @@ function renderDiagram(solution) {
     // Calculate space needed for labels below panels
     // Panel width labels are positioned at startY + panelHeight + 25
     // Text height for font-size 12 is approximately 15px
+    // Add extra space for total width line and detail view image below
     const spaceForLabels = 25 + 15; // Position offset + text height = 40px
+    const spaceBelowTotalWidth = 50; // Space for total width line, label, and detail view image
     
     // Calculate the actual bottom of all content dynamically
-    const contentBottomY = startY + panelHeight + spaceForLabels;
+    const contentBottomY = startY + panelHeight + spaceForLabels + spaceBelowTotalWidth;
     
     // Create SVG element - use full container width
     // Set viewBox to anchor content to top with exactly 10px top margin
@@ -377,10 +379,9 @@ function renderDiagram(solution) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    // ViewBox: includes space above for project/curtain names, total width line, panels, and space below
+    // ViewBox: includes space above for project/curtain names, panels, and space below for total width line and detail views
     // Adjust viewBox to start at negative Y to include all content above panels
-    // Increase topSpace to ensure names are visible (they are at Y = -30 and -50)
-    const topSpace = projectName || curtainName ? 60 : 20; // Increased space for names and total width line
+    const topSpace = projectName || curtainName ? 60 : 20; // Space for names above
     svg.setAttribute('viewBox', `0 -${topSpace} ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + topSpace}`);
     // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
@@ -432,89 +433,34 @@ function renderDiagram(solution) {
     heightLabel.textContent = `${state.curtainHeight.toFixed(0)} mm`;
     svg.appendChild(heightLabel);
     
-    // Draw total width line first (above fold labels) - fixed position
-    const totalWidthLineY = -5; // Fixed position above fold labels (which are at startY-2=8)
-    const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    totalWidthLine.setAttribute('x1', startX);
-    totalWidthLine.setAttribute('y1', totalWidthLineY);
-    totalWidthLine.setAttribute('x2', startX + totalWidthPx);
-    totalWidthLine.setAttribute('y2', totalWidthLineY);
-    totalWidthLine.setAttribute('stroke', '#000');
-    totalWidthLine.setAttribute('stroke-width', '2');
-    svg.appendChild(totalWidthLine);
-    
-    // Add project name and curtain name at the top right of SVG (for PDF export with Unicode support)
+    // Add project name and curtain name at the center top of SVG (for PDF export with Unicode support)
     // projectName and curtainName are already defined above
-    // Position them well to the right to avoid collision with total width line
-    // Move them further right and position them above the total width line
-    const rightEdgeX = startX + totalWidthPx + viewBoxPaddingX - 10; // Further right, less margin
-    let nameY = -30; // Position well above total width line (which is at Y = -5)
+    // Position them centered above the diagram
+    const centerX = startX + totalWidthPx / 2; // Center of the diagram
+    let nameY = -30; // Position above the diagram
     if (projectName) {
         const projectNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        projectNameText.setAttribute('x', rightEdgeX);
+        projectNameText.setAttribute('x', centerX);
         projectNameText.setAttribute('y', nameY);
-        projectNameText.setAttribute('text-anchor', 'end'); // Right-aligned
+        projectNameText.setAttribute('text-anchor', 'middle'); // Center-aligned
         projectNameText.setAttribute('font-size', '16');
         projectNameText.setAttribute('font-weight', 'bold');
         projectNameText.setAttribute('fill', '#000');
-        // Add white background to ensure visibility
-        const projectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        const textWidth = projectName.length * 10; // Approximate text width
-        projectBg.setAttribute('x', rightEdgeX - textWidth - 5);
-        projectBg.setAttribute('y', nameY - 12);
-        projectBg.setAttribute('width', textWidth + 10);
-        projectBg.setAttribute('height', '18');
-        projectBg.setAttribute('fill', 'white');
-        projectBg.setAttribute('stroke', 'none');
-        svg.appendChild(projectBg);
         projectNameText.textContent = projectName;
         svg.appendChild(projectNameText);
         nameY -= 20; // 20px spacing between names
     }
     if (curtainName) {
         const curtainNameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        curtainNameText.setAttribute('x', rightEdgeX);
+        curtainNameText.setAttribute('x', centerX);
         curtainNameText.setAttribute('y', nameY);
-        curtainNameText.setAttribute('text-anchor', 'end'); // Right-aligned
+        curtainNameText.setAttribute('text-anchor', 'middle'); // Center-aligned
         curtainNameText.setAttribute('font-size', '16');
         curtainNameText.setAttribute('font-weight', 'bold');
         curtainNameText.setAttribute('fill', '#000');
-        // Add white background to ensure visibility
-        const curtainBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        const textWidth = curtainName.length * 10; // Approximate text width
-        curtainBg.setAttribute('x', rightEdgeX - textWidth - 5);
-        curtainBg.setAttribute('y', nameY - 12);
-        curtainBg.setAttribute('width', textWidth + 10);
-        curtainBg.setAttribute('height', '18');
-        curtainBg.setAttribute('fill', 'white');
-        curtainBg.setAttribute('stroke', 'none');
-        svg.appendChild(curtainBg);
         curtainNameText.textContent = curtainName;
         svg.appendChild(curtainNameText);
     }
-    
-    // Total width label (centered) - display only in mm, positioned above the line with white background
-    const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    const labelText = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
-    totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
-    totalWidthLabel.setAttribute('y', totalWidthLineY - 8);
-    totalWidthLabel.setAttribute('text-anchor', 'middle');
-    totalWidthLabel.setAttribute('font-size', '14');
-    totalWidthLabel.setAttribute('font-weight', '600');
-    totalWidthLabel.setAttribute('fill', '#000');
-    // Add white background rectangle behind text to prevent cutting
-    const textBBox = { width: labelText.length * 8, height: 16 }; // Approximate text dimensions
-    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bgRect.setAttribute('x', startX + totalWidthPx / 2 - textBBox.width / 2 - 5);
-    bgRect.setAttribute('y', totalWidthLineY - 8 - textBBox.height + 4);
-    bgRect.setAttribute('width', textBBox.width + 10);
-    bgRect.setAttribute('height', textBBox.height);
-    bgRect.setAttribute('fill', 'white');
-    bgRect.setAttribute('stroke', 'none');
-    svg.appendChild(bgRect);
-    // Always LTR for English labels
-    totalWidthLabel.textContent = labelText;
-    svg.appendChild(totalWidthLabel);
     
     // Draw panels
     let currentX = startX;
