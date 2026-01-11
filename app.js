@@ -183,12 +183,16 @@ function calculate() {
  */
 function findOptimalSolution() {
     const totalCurtainWidth = Number(state.curtainWidth); // in mm - ensure number
+    const curtainHeight = Number(state.curtainHeight); // in mm - ensure number
     const fabricWidths = [2100, 2000, 1900, 1500]; // in mm
     const inventory = state.fabricInventory;
 
     // Fold values in mm: 140mm (outer edge) + 40mm (inner edge) = 180mm
     const OUTER_FOLD_MM = 180; // 140 mm (outer edge) + 40 mm (inner edge) = 180 mm
     const INNER_FOLD_MM = 80;  // 40 mm on each side = 80 mm
+    
+    // Each roll is 50 meters = 5000 mm long
+    const ROLL_LENGTH_MM = 5000; // 50 meters = 5000 mm
 
     let bestSolution = null;
     let minWaste = Infinity;
@@ -204,14 +208,28 @@ function findOptimalSolution() {
         
         const fabricWidth = Number(fabricWidthMm); // Already in mm
         
+        // Calculate how many panels can be cut from one roll based on height
+        // Each panel needs curtainHeight mm, so from one roll we can get:
+        const panelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+        
+        // Skip if we can't cut at least 1 panel from a roll
+        if (panelsPerRoll < 1) {
+            continue;
+        }
+        
+        // Maximum panels we can cut from all available rolls
+        const maxPanelsFromRolls = availableRolls * panelsPerRoll;
+        
         // For each fabric width, loop over all valid parts values
-        // Test from 2 up to availableRolls
-        // Also test more parts to ensure we find a solution
-        const maxPartsToTest = Math.max(availableRolls, Math.min(Math.ceil(totalCurtainWidth / fabricWidth) + 5, 30));
+        // Test from 2 up to maxPanelsFromRolls
+        const maxPartsToTest = Math.min(maxPanelsFromRolls, Math.ceil(totalCurtainWidth / fabricWidth) + 5, 30);
         
         for (let parts = 2; parts <= maxPartsToTest; parts++) {
+            // Calculate how many rolls we need for this number of parts
+            const rollsNeeded = Math.ceil(parts / panelsPerRoll);
+            
             // Skip if we don't have enough rolls
-            if (parts > availableRolls) {
+            if (rollsNeeded > availableRolls) {
                 continue;
             }
             
@@ -257,7 +275,9 @@ function findOptimalSolution() {
                     netWidth: netWidth, // in mm
                     outerPanelWidth: outerCutWidth,  // in mm
                     innerPanelWidth: innerCutWidth,  // in mm
-                    waste: waste // in mm
+                    waste: waste, // in mm
+                    rollsNeeded: rollsNeeded, // Number of rolls needed
+                    panelsPerRoll: panelsPerRoll // Number of panels per roll
                 };
             }
         }
@@ -277,6 +297,12 @@ function displayResults(solution) {
         </div>
         <div class="result-item">
             <strong>Number of Panels:</strong> ${solution.parts}
+        </div>
+        <div class="result-item">
+            <strong>Panels per Roll:</strong> ${solution.panelsPerRoll || Math.floor(5000 / state.curtainHeight)}
+        </div>
+        <div class="result-item">
+            <strong>Rolls Needed:</strong> ${solution.rollsNeeded || Math.ceil(solution.parts / (solution.panelsPerRoll || Math.floor(5000 / state.curtainHeight)))}
         </div>
         <div class="result-item">
             <strong>Net Width per Panel:</strong> ${solution.netWidth.toFixed(1)} mm
