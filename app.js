@@ -803,7 +803,7 @@ function exportToPDF() {
         pdf.setFontSize(8);
         const foldAlign = isRTL ? 'right' : 'center';
         const foldLabelY = startY - 5; // Position above panels
-        const innerLabelOffset = 4; // Fixed spacing offset for inner panel labels to prevent overlap (in mm)
+        const innerLabelOffset = 10; // Increased fixed spacing offset for inner panel labels to prevent overlap (in mm)
         if (isOuter && i === 0) {
             // Left outer: label "140 mm" at left edge (currentX), label "40 mm" at right fold line
             pdf.text(`140 mm`, currentX, foldLabelY, { align: foldAlign });
@@ -813,11 +813,11 @@ function exportToPDF() {
             pdf.text(`40 mm`, leftFoldX, foldLabelY, { align: foldAlign });
             pdf.text(`140 mm`, currentX + panelWidth, foldLabelY, { align: foldAlign });
         } else {
-            // Inner: labels at fold lines with fixed spacing to prevent overlap
-            // Left label: offset to the left of the fold line
-            pdf.text(`40 mm`, leftFoldX - innerLabelOffset, foldLabelY, { align: foldAlign });
-            // Right label: offset to the right of the fold line
-            pdf.text(`40 mm`, rightFoldX + innerLabelOffset, foldLabelY, { align: foldAlign });
+            // Inner: labels at fold lines with larger fixed spacing to prevent overlap
+            // Left label: offset significantly to the left of the fold line
+            pdf.text(`40 mm`, leftFoldX - innerLabelOffset, foldLabelY, { align: 'left' });
+            // Right label: offset significantly to the right of the fold line
+            pdf.text(`40 mm`, rightFoldX + innerLabelOffset, foldLabelY, { align: 'right' });
         }
         
         // Net width line (horizontal dashed between fold lines)
