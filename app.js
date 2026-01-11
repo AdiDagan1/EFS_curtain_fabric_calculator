@@ -659,6 +659,78 @@ function renderDiagram(solution) {
         currentX += panelWidth + gapPx;
     }
     
+    // Add detail view arrows and image reference (like technical drawing)
+    // Arrow 1: From right corner of the curtain (last panel) to image "1"
+    const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
+    const lastPanelY = startY;
+    const image1X = startX + totalWidthPx + viewBoxPaddingX - 50; // Position for image "1" on the right
+    const image1Y = startY + panelHeight / 2; // Middle height
+    
+    // Draw arrow from right corner of last panel to image "1"
+    const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    arrow1.setAttribute('x1', lastPanelX);
+    arrow1.setAttribute('y1', lastPanelY);
+    arrow1.setAttribute('x2', image1X);
+    arrow1.setAttribute('y2', image1Y);
+    arrow1.setAttribute('stroke', '#000');
+    arrow1.setAttribute('stroke-width', '1.5');
+    arrow1.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(arrow1);
+    
+    // Arrow 2: From one of the panel connections (between panels) to image "1"
+    // Use the connection between first and second panel
+    if (solution.parts > 1) {
+        const connectionX = startX + outerPanelWidth; // Between first and second panel
+        const connectionY = startY + panelHeight / 3; // Upper third of panel height
+        const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        arrow2.setAttribute('x1', connectionX);
+        arrow2.setAttribute('y1', connectionY);
+        arrow2.setAttribute('x2', image1X);
+        arrow2.setAttribute('y2', image1Y);
+        arrow2.setAttribute('stroke', '#000');
+        arrow2.setAttribute('stroke-width', '1.5');
+        arrow2.setAttribute('marker-end', 'url(#arrowhead)');
+        svg.appendChild(arrow2);
+    }
+    
+    // Add arrowhead marker definition
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '10');
+    marker.setAttribute('markerHeight', '10');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '0 0, 10 3, 0 6');
+    polygon.setAttribute('fill', '#000');
+    marker.appendChild(polygon);
+    const existingDefs = svg.querySelector('defs');
+    if (existingDefs) {
+        existingDefs.appendChild(marker);
+    }
+    
+    // Add image "1" label/circle at the target position
+    const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    image1Circle.setAttribute('cx', image1X);
+    image1Circle.setAttribute('cy', image1Y);
+    image1Circle.setAttribute('r', '15');
+    image1Circle.setAttribute('fill', 'white');
+    image1Circle.setAttribute('stroke', '#000');
+    image1Circle.setAttribute('stroke-width', '2');
+    svg.appendChild(image1Circle);
+    
+    const image1Label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    image1Label.setAttribute('x', image1X);
+    image1Label.setAttribute('y', image1Y);
+    image1Label.setAttribute('text-anchor', 'middle');
+    image1Label.setAttribute('dominant-baseline', 'middle');
+    image1Label.setAttribute('font-size', '14');
+    image1Label.setAttribute('font-weight', 'bold');
+    image1Label.setAttribute('fill', '#000');
+    image1Label.textContent = '1';
+    svg.appendChild(image1Label);
+    
     // Store SVG reference for PDF export
     state.diagramSVG = svg;
     state.diagramSolution = solution;
