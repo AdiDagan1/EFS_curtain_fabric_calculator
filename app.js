@@ -341,26 +341,23 @@ function renderDiagram(solution) {
     const maxWidth = containerRect.width || 1200; // Fallback if container not ready
     const maxHeight = containerRect.height || 600; // Fallback if container not ready
     
-    // Calculate fixed panel dimensions based on maximum 5 parts fitting in the page
-    // Formula: maxWidth = 5 * panelWidth + 4 * gap + margins
-    const gapPixels = 40; // Fixed gap between panels in pixels
-    const maxParts = 5; // Maximum number of parts to fit
-    const horizontalMargins = 200; // Space for height indicator and padding (left + right)
-    const availableWidth = maxWidth - horizontalMargins;
-    // Calculate panel width: (availableWidth - (maxParts - 1) * gap) / maxParts
-    const calculatedPanelWidth = Math.floor((availableWidth - (maxParts - 1) * gapPixels) / maxParts);
-    const FIXED_PANEL_WIDTH = Math.max(100, calculatedPanelWidth); // Minimum 100px, calculated based on 5 parts
-    
-    // Fixed panel height - 70% of PDF page height (A4 landscape = 210mm)
-    // A4 landscape height = 210mm, 70% = 147mm
-    // Convert to pixels: at 96 DPI, 1mm ≈ 3.78px, so 147mm ≈ 555px
-    // But calculate based on container height to ensure it fits
-    // Use 70% of available container height, with minimum based on PDF
+    // Fixed panel dimensions - 70% of page dimensions (constant size, only number of panels changes)
+    // Calculate based on PDF page size (A4 landscape: 297mm x 210mm)
+    // Convert to pixels: at 96 DPI, 1mm ≈ 3.78px
+    const pdfWidthMm = 297; // A4 landscape width in mm
     const pdfHeightMm = 210; // A4 landscape height in mm
-    const pdfHeightPx = pdfHeightMm * 3.78; // Convert mm to pixels (approximate)
-    const minPanelHeight = Math.floor(pdfHeightPx * 0.7); // 70% of PDF height as minimum
-    const containerBasedHeight = Math.floor(maxHeight * 0.7); // 70% of container height
-    const FIXED_PANEL_HEIGHT = Math.max(minPanelHeight, containerBasedHeight); // Use the larger value
+    const pdfWidthPx = pdfWidthMm * 3.78; // Convert to pixels
+    const pdfHeightPx = pdfHeightMm * 3.78; // Convert to pixels
+    
+    // Panel dimensions: 70% of PDF page
+    const FIXED_PANEL_HEIGHT = Math.floor(pdfHeightPx * 0.7); // 70% of PDF height
+    // Panel width: 70% of PDF width, but need to account for gaps between panels
+    // For maximum 5 parts: totalWidth = 5 * panelWidth + 4 * gap
+    // So: panelWidth = (0.7 * pdfWidth - 4 * gap) / 5
+    const gapPixels = 40; // Fixed gap between panels in pixels
+    const maxParts = 5; // Maximum number of parts
+    const totalAvailableWidth = pdfWidthPx * 0.7; // 70% of PDF width
+    const FIXED_PANEL_WIDTH = Math.floor((totalAvailableWidth - (maxParts - 1) * gapPixels) / maxParts);
     
     // Use fixed dimensions for display (calculation remains unchanged)
     const panelHeight = FIXED_PANEL_HEIGHT;
@@ -756,15 +753,24 @@ function renderDiagram(solution) {
     image1Circle.setAttribute('stroke-width', '2');
     svg.appendChild(image1Circle);
     
-    // Add image 1.jpg inside the circle - use both href and xlink:href for compatibility
+    // Add image 1.jpg inside the circle - convert to base64 for PDF compatibility
     const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '1.jpg'); // Use xlink:href for better compatibility
-    image1Img.setAttribute('href', '1.jpg'); // Also set href for modern browsers
     image1Img.setAttribute('x', image1X - 25);
     image1Img.setAttribute('y', image1Y - 25);
     image1Img.setAttribute('width', '50');
     image1Img.setAttribute('height', '50');
     image1Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    // Load image and convert to base64
+    loadImageAsBase64('1.jpg').then(base64 => {
+        if (base64) {
+            image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
+            image1Img.setAttribute('href', base64);
+        }
+    }).catch(() => {
+        // If image fails to load, keep the original href
+        image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '1.jpg');
+        image1Img.setAttribute('href', '1.jpg');
+    });
     svg.appendChild(image1Img);
     
     // Store SVG reference for PDF export
