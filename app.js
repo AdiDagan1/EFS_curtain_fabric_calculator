@@ -701,32 +701,47 @@ async function exportToPDF() {
         // A4 landscape: 297mm x 210mm
         const pdfWidth = 297;
         const pdfHeight = 210;
-        const margin = 10; // Small margin
-        const topMargin = 25; // Extra margin at top for project/curtain names
+        const margin = 5; // Minimal margin to maximize diagram size
         
-        // Add project name and curtain name at the top of PDF
+        // Add project name and curtain name at the top of PDF (Hebrew, no labels)
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
-        const projectName = state.projectName.trim() || 'Project';
-        const curtainName = state.curtainName.trim() || 'Curtain';
-        pdf.text(`Project: ${projectName}`, margin, 10, { align: 'left' });
-        pdf.text(`Curtain: ${curtainName}`, margin, 18, { align: 'left' });
+        const projectName = state.projectName.trim() || '';
+        const curtainName = state.curtainName.trim() || '';
         
-        // Calculate dimensions to fit canvas in PDF
+        // Add names without labels, in Hebrew direction (RTL)
+        pdf.setR2L(true); // Enable RTL for Hebrew text
+        let yPos = 10;
+        if (projectName) {
+            pdf.text(projectName, pdfWidth - margin, yPos, { align: 'right' }); // RTL for Hebrew
+            yPos += 8;
+        }
+        if (curtainName) {
+            pdf.text(curtainName, pdfWidth - margin, yPos, { align: 'right' }); // RTL for Hebrew
+            yPos += 8;
+        }
+        const topMargin = yPos > 10 ? yPos + 5 : 10; // Adjust top margin based on content
+        
+        // Calculate dimensions to fit canvas in PDF - maximize size
         const canvasWidth = canvas.width;
         const canvasHeight = canvas.height;
         const canvasAspectRatio = canvasWidth / canvasHeight;
-        const pdfAspectRatio = (pdfWidth - margin * 2) / (pdfHeight - margin * 2);
+        
+        // Use minimal margins to maximize diagram size
+        const availableWidth = pdfWidth - margin * 2;
+        const availableHeight = pdfHeight - topMargin - margin;
+        
+        const pdfAspectRatio = availableWidth / availableHeight;
         
         let imgWidth, imgHeight;
         if (canvasAspectRatio > pdfAspectRatio) {
-            // Canvas is wider - fit to width
-            imgWidth = pdfWidth - margin * 2;
+            // Canvas is wider - fit to width (fill entire width)
+            imgWidth = availableWidth;
             imgHeight = imgWidth / canvasAspectRatio;
         } else {
-            // Canvas is taller - fit to height
-            imgHeight = pdfHeight - margin * 2;
+            // Canvas is taller - fit to height (fill entire height)
+            imgHeight = availableHeight;
             imgWidth = imgHeight * canvasAspectRatio;
         }
         
