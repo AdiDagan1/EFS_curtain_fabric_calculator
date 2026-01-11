@@ -178,7 +178,7 @@ function calculate() {
  * @returns {Object|null} Solution object with fabricWidth, parts, netWidth, outerPanelWidth, innerPanelWidth, waste
  */
 function findOptimalSolution() {
-    const totalCurtainWidth = state.curtainWidth; // in cm
+    const totalCurtainWidth = Number(state.curtainWidth); // in cm - ensure number
     const fabricWidths = [2100, 2000, 1900, 1500]; // in mm
     const inventory = state.fabricInventory;
 
@@ -187,38 +187,60 @@ function findOptimalSolution() {
 
     // Loop over all fabric widths that exist in inventory
     for (const fabricWidthMm of fabricWidths) {
-        const availableRolls = inventory[fabricWidthMm];
+        const availableRolls = Number(inventory[fabricWidthMm]); // Ensure number
         
         // Skip if no inventory available
-        if (availableRolls === 0) {
+        if (!availableRolls || availableRolls === 0) {
             continue;
         }
         
-        const fabricWidthCm = fabricWidthMm / 10; // Convert mm to cm
+        const fabricWidthCm = Number(fabricWidthMm) / 10; // Convert mm to cm, ensure number
         
         // For each fabric width, loop over all valid parts values
-        // From 2 up to inventory[fabricWidth]
-        for (let parts = 2; parts <= availableRolls; parts++) {
+        // Test from 2 up to availableRolls (we have enough fabric for this)
+        // Also test a few more parts beyond availableRolls in case we need to calculate bounds
+        // But prioritize testing all combinations up to availableRolls first
+        const maxPartsToTest = Math.max(availableRolls, Math.min(Math.ceil(totalCurtainWidth / Math.min(fabricWidthCm, 200)) + 2, 20));
+        
+        for (let parts = 2; parts <= maxPartsToTest; parts++) {
+            // Skip if we don't have enough rolls (but still test to find bounds)
+            // Actually, we MUST have enough rolls, so enforce this strictly
+            if (parts > availableRolls) {
+                continue;
+            }
+            
             // Calculate net width per panel using the correct formula
             // Total curtain width = 2 * (netWidth + 180) + (parts - 2) * (netWidth + 80)
             // Solving for netWidth: netWidth = (totalCurtainWidth - 2 * 180 - (parts - 2) * 80) / parts
             let netWidth = (totalCurtainWidth - 2 * 180 - (parts - 2) * 80) / parts;
             
+            // Check for invalid netWidth (negative or zero)
+            if (netWidth <= 0) {
+                continue;
+            }
+            
             // Round netWidth to 1 decimal place (allow decimal values for real-world fabric cutting)
             netWidth = Math.round(netWidth * 10) / 10;
             
             // Calculate cut widths (different for outer and inner panels)
-            const outerCutWidth = netWidth + 180; // 140 (outer edge) + 40 (inner edge)
-            const innerCutWidth = netWidth + 80;  // 40 on each side
+            // All values in cm
+            const outerCutWidth = netWidth + 180; // 140 (outer edge) + 40 (inner edge) = 180 cm
+            const innerCutWidth = netWidth + 80;  // 40 on each side = 80 cm
             
-            // Validate that cut widths fit within fabric width
+            // Validate that cut widths fit within fabric width (all in cm)
             if (outerCutWidth > fabricWidthCm || innerCutWidth > fabricWidthCm) {
                 continue;
             }
             
             // Calculate fabric waste per panel, then sum
             // waste = 2 * (fabricWidth - outerCutWidth) + (parts - 2) * (fabricWidth - innerCutWidth)
+            // All values in cm
             const waste = 2 * (fabricWidthCm - outerCutWidth) + (parts - 2) * (fabricWidthCm - innerCutWidth);
+            
+            // Only consider solutions with non-negative waste
+            if (waste < 0) {
+                continue;
+            }
 
             // Check if this is a better solution (lower waste is better)
             if (waste < minWaste) {
