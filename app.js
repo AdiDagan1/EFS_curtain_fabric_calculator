@@ -557,8 +557,12 @@ function renderDiagram(solution) {
         }
         
         leftFoldLabel.setAttribute('x', leftLabelX);
-        leftFoldLabel.setAttribute('y', 5); // Positioned above panels (panels start at startY=10)
-        leftFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
+        // Position labels just above each panel (relative to panel, not fixed global Y)
+        const foldLabelY = startY - 2; // Just above the panel top edge
+        leftFoldLabel.setAttribute('y', foldLabelY);
+        // For inner panels, use 'middle' alignment to prevent overlap
+        const labelAnchor = (!isOuter) ? 'middle' : (isRTL ? 'end' : 'middle');
+        leftFoldLabel.setAttribute('text-anchor', labelAnchor);
         leftFoldLabel.setAttribute('font-size', '10');
         leftFoldLabel.setAttribute('font-weight', '600');
         leftFoldLabel.setAttribute('fill', '#666');
@@ -582,8 +586,10 @@ function renderDiagram(solution) {
         // Right fold label
         const rightFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rightFoldLabel.setAttribute('x', rightFoldX);
-        rightFoldLabel.setAttribute('y', 5); // Positioned above panels (panels start at startY=10)
-        rightFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
+        // Position labels just above each panel (relative to panel, not fixed global Y)
+        rightFoldLabel.setAttribute('y', foldLabelY);
+        // For inner panels, use 'middle' alignment to prevent overlap
+        rightFoldLabel.setAttribute('text-anchor', labelAnchor);
         rightFoldLabel.setAttribute('font-size', '10');
         rightFoldLabel.setAttribute('font-weight', '600');
         rightFoldLabel.setAttribute('fill', '#666');
@@ -668,184 +674,108 @@ function renderDiagram(solution) {
     container.appendChild(svg);
 }
 
-// Export diagram to PDF
-function exportToPDF() {
+// Export diagram to PDF using html2canvas for Unicode support
+async function exportToPDF() {
     if (!state.diagramSVG || !state.diagramSolution) {
         return;
     }
     
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-    });
+    // Check if html2canvas is available
+    if (typeof html2canvas === 'undefined') {
+        alert('html2canvas library is required for PDF export. Please wait for it to load.');
+        return;
+    }
     
+    const { jsPDF } = window.jspdf;
     const solution = state.diagramSolution;
     const lang = state.diagramLanguage;
-    const t = translations[lang] || translations.en;
-    const isRTL = lang === 'he' || lang === 'ar';
     
-    // A4 landscape: 297mm x 210mm
-    const pdfWidth = 297;
-    const pdfHeight = 210;
+    // Get the SVG container
+    const container = document.getElementById('diagram-container');
+    const svgElement = container.querySelector('svg');
     
-    // All values are in mm
-    const totalCurtainWidthMm = 2 * solution.outerPanelWidth + (solution.parts - 2) * solution.innerPanelWidth;
-    const gap = 40; // Increased gap between panels in mm to prevent fold labels from overlapping
-    const totalWidthMm = totalCurtainWidthMm + (solution.parts - 1) * gap;
-    const curtainHeightMm = state.curtainHeight;
-    
-    // Scale to fit in PDF with margins (all in mm)
-    const margin = 20; // 20mm margins
-    const rightMargin = 25; // Extra right margin to prevent cutting
-    const leftMargin = 30; // Extra left margin to move diagram right and prevent cutting
-    const scaleX = (pdfWidth - margin * 2 - leftMargin - rightMargin) / totalWidthMm;
-    const scaleY = (pdfHeight - margin * 2) / curtainHeightMm;
-    const scale = Math.min(scaleX, scaleY);
-    
-    // Calculate dimensions in mm (already in mm, just scale)
-    const panelHeight = curtainHeightMm * scale;
-    const outerPanelWidth = solution.outerPanelWidth * scale;
-    const innerPanelWidth = solution.innerPanelWidth * scale;
-    const gapPx = gap * scale;
-    
-    const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    const startX = margin + leftMargin; // Moved right to prevent cutting
-    const startY = margin + 15; // Extra space for top label
-    
-    // Set text direction
-    if (isRTL) {
-        pdf.setR2L(true);
+    if (!svgElement) {
+        alert('No diagram to export');
+        return;
     }
     
-    // Draw height indicator
-    const heightLineX = startX - 10;
-    pdf.setLineWidth(0.5);
-    pdf.line(heightLineX, startY, heightLineX, startY + panelHeight);
+    // Create a temporary container for rendering
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.width = '1200px'; // Fixed width for consistent rendering
+    tempContainer.style.backgroundColor = 'white';
+    document.body.appendChild(tempContainer);
     
-    // Height label (rotated) - display only in mm, positioned very close to the line
-    pdf.setFontSize(9);
-    pdf.setTextColor(0, 0, 0);
-    const heightText = `${state.curtainHeight.toFixed(0)} mm`;
-    // Draw rotated text very close to the height line (adjacent to it, not cut off)
-    pdf.text(heightText, heightLineX - 1, startY + panelHeight / 2, {
-        angle: 90,
-        align: 'center'
-    });
+    // Clone the SVG
+    const clonedSvg = svgElement.cloneNode(true);
+    tempContainer.appendChild(clonedSvg);
     
-    // Draw total width line
-    pdf.setLineWidth(0.5);
-    pdf.line(startX, startY - 10, startX + totalWidthPx, startY - 10);
-    
-    // Total width label (centered for LTR, right-aligned for RTL) - display only in mm
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, 'bold');
-    pdf.text(`${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`, startX + totalWidthPx / 2, startY - 15, {
-        align: isRTL ? 'right' : 'center'
-    });
-    
-    // Draw panels
-    let currentX = startX;
-    for (let i = 0; i < solution.parts; i++) {
-        const isOuter = i === 0 || i === solution.parts - 1;
-        const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
-        const totalWidth = isOuter ? solution.outerPanelWidth : solution.innerPanelWidth;
-        
-        // Panel rectangle
-        pdf.setDrawColor(0, 0, 0);
-        pdf.setFillColor(255, 255, 255);
-        pdf.setLineWidth(0.5);
-        pdf.rect(currentX, startY, panelWidth, panelHeight, 'FD');
-        
-        // Fold lines (dashed)
-        pdf.setDrawColor(100, 100, 100);
-        pdf.setLineWidth(0.3);
-        
-        // Fold values in mm: 140mm and 40mm
-        const OUTER_FOLD_MM = 140; // 140 mm
-        const INNER_FOLD_MM = 40;  // 40 mm
-        let leftFoldX, rightFoldX, netWidthStartX, netWidthEndX;
-        
-        if (isOuter) {
-            if (i === 0) {
-                // Left outer: 140mm fold on left (moved right to match spacing), 40mm fold on right
-                leftFoldX = currentX + OUTER_FOLD_MM * scale; // 140mm from left edge (moved right)
-                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
-                netWidthStartX = leftFoldX; // Start after the 140mm fold line
-                netWidthEndX = rightFoldX; // End before the 40mm fold line
-            } else {
-                // Right outer: 40mm fold on left, 140mm fold on right
-                leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
-                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale; // 140mm from right edge
-                netWidthStartX = leftFoldX; // Start after the 40mm fold line
-                netWidthEndX = rightFoldX; // End before the 140mm fold line
-            }
-        } else {
-            // Inner panel: 40mm on each side
-            leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
-            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
-            netWidthStartX = leftFoldX; // Start after the 40mm fold line
-            netWidthEndX = rightFoldX; // End before the 40mm fold line
-        }
-        
-        // Draw dashed lines along the length of the panel (left and right edges)
-        // Move left edge line slightly to the right to avoid merging with panel border
-        const leftEdgeOffset = 1; // Offset in mm to separate from border
-        drawDashedLine(pdf, currentX + leftEdgeOffset, startY, currentX + leftEdgeOffset, startY + panelHeight);
-        drawDashedLine(pdf, currentX + panelWidth, startY, currentX + panelWidth, startY + panelHeight);
-        
-        // Draw fold lines
-        drawDashedLine(pdf, leftFoldX, startY, leftFoldX, startY + panelHeight);
-        drawDashedLine(pdf, rightFoldX, startY, rightFoldX, startY + panelHeight);
-        
-        // Fold labels - display only in mm, positioned above panels with spacing
-        pdf.setFontSize(8);
-        const foldAlign = isRTL ? 'right' : 'center';
-        const foldLabelY = startY - 5; // Position above panels
-        const innerLabelOffset = 10; // Increased fixed spacing offset for inner panel labels to prevent overlap (in mm)
-        if (isOuter && i === 0) {
-            // Left outer: label "140 mm" at left edge (currentX), label "40 mm" at right fold line
-            pdf.text(`140 mm`, currentX, foldLabelY, { align: foldAlign });
-            pdf.text(`40 mm`, rightFoldX, foldLabelY, { align: foldAlign });
-        } else if (isOuter && i === solution.parts - 1) {
-            // Right outer: label "40 mm" at left fold line, label "140 mm" at right edge
-            pdf.text(`40 mm`, leftFoldX, foldLabelY, { align: foldAlign });
-            pdf.text(`140 mm`, currentX + panelWidth, foldLabelY, { align: foldAlign });
-        } else {
-            // Inner: labels at fold lines with larger fixed spacing to prevent overlap
-            // Left label: offset significantly to the left of the fold line
-            pdf.text(`40 mm`, leftFoldX - innerLabelOffset, foldLabelY, { align: 'left' });
-            // Right label: offset significantly to the right of the fold line
-            pdf.text(`40 mm`, rightFoldX + innerLabelOffset, foldLabelY, { align: 'right' });
-        }
-        
-        // Net width line (horizontal dashed between fold lines)
-        drawDashedLine(pdf, netWidthStartX, startY + panelHeight / 2, netWidthEndX, startY + panelHeight / 2);
-        
-        // Net width label - display only in mm
-        pdf.setFontSize(8);
-        pdf.text(`${solution.netWidth.toFixed(1)} mm`, (netWidthStartX + netWidthEndX) / 2, startY + panelHeight / 2 - 3, {
-            align: isRTL ? 'right' : 'center'
+    try {
+        // Convert SVG to canvas using html2canvas (supports Unicode)
+        const canvas = await html2canvas(tempContainer, {
+            backgroundColor: '#ffffff',
+            scale: 2, // Higher quality
+            useCORS: true,
+            logging: false
         });
         
-        // Panel width label (below) - display only the number in mm
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(`${totalWidth.toFixed(1)} mm`, currentX + panelWidth / 2, startY + panelHeight + 8, {
-            align: isRTL ? 'right' : 'center'
+        // Clean up temporary container
+        document.body.removeChild(tempContainer);
+        
+        // Create PDF
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
         });
         
-        currentX += panelWidth + gapPx;
+        // A4 landscape: 297mm x 210mm
+        const pdfWidth = 297;
+        const pdfHeight = 210;
+        const margin = 10; // Small margin
+        
+        // Calculate dimensions to fit canvas in PDF
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const canvasAspectRatio = canvasWidth / canvasHeight;
+        const pdfAspectRatio = (pdfWidth - margin * 2) / (pdfHeight - margin * 2);
+        
+        let imgWidth, imgHeight;
+        if (canvasAspectRatio > pdfAspectRatio) {
+            // Canvas is wider - fit to width
+            imgWidth = pdfWidth - margin * 2;
+            imgHeight = imgWidth / canvasAspectRatio;
+        } else {
+            // Canvas is taller - fit to height
+            imgHeight = pdfHeight - margin * 2;
+            imgWidth = imgHeight * canvasAspectRatio;
+        }
+        
+        // Center the image
+        const x = (pdfWidth - imgWidth) / 2;
+        const y = (pdfHeight - imgHeight) / 2;
+        
+        // Convert canvas to image data
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Add image to PDF
+        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+        
+        // Generate PDF filename with curtain name
+        const curtainName = state.curtainName.trim() || 'Curtain';
+        const filename = `${curtainName}_חישוב_בדים.pdf`;
+        
+        // Save PDF
+        pdf.save(filename);
+    } catch (error) {
+        console.error('Error exporting PDF:', error);
+        alert('Error exporting PDF. Please try again.');
+        // Clean up on error
+        if (document.body.contains(tempContainer)) {
+            document.body.removeChild(tempContainer);
+        }
     }
-    
-    // Generate PDF filename with curtain name
-    const curtainName = state.curtainName.trim() || 'Curtain';
-    const filename = `${curtainName}_חישוב_בדים.pdf`;
-    
-    // Save PDF
-    pdf.save(filename);
 }
 
 // Helper function to draw dashed lines in PDF
