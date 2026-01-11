@@ -341,10 +341,18 @@ function renderDiagram(solution) {
     const maxWidth = containerRect.width || 1200; // Fallback if container not ready
     const maxHeight = containerRect.height || 600; // Fallback if container not ready
     
-    // Fixed panel dimensions for display (not proportional to actual measurements)
-    const FIXED_PANEL_HEIGHT = 200; // Fixed height in pixels for all panels
-    const FIXED_PANEL_WIDTH = 150; // Fixed width in pixels for all panels
+    // Calculate fixed panel dimensions based on maximum 5 parts fitting in the page
+    // Formula: maxWidth = 5 * panelWidth + 4 * gap + margins
     const gapPixels = 40; // Fixed gap between panels in pixels
+    const maxParts = 5; // Maximum number of parts to fit
+    const horizontalMargins = 200; // Space for height indicator and padding (left + right)
+    const availableWidth = maxWidth - horizontalMargins;
+    // Calculate panel width: (availableWidth - (maxParts - 1) * gap) / maxParts
+    const calculatedPanelWidth = Math.floor((availableWidth - (maxParts - 1) * gapPixels) / maxParts);
+    const FIXED_PANEL_WIDTH = Math.max(100, calculatedPanelWidth); // Minimum 100px, calculated based on 5 parts
+    
+    // Fixed panel height - use reasonable fixed height
+    const FIXED_PANEL_HEIGHT = 200; // Fixed height in pixels for all panels
     
     // Use fixed dimensions for display (calculation remains unchanged)
     const panelHeight = FIXED_PANEL_HEIGHT;
