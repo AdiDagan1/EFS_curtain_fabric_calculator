@@ -359,21 +359,28 @@ function renderDiagram(solution) {
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    const totalHeightPx = panelHeight + 100;
+    
+    // Starting position - exactly 10px from top, with margin for height indicator on left
+    const startX = 80;
+    const startY = 10; // Exactly 10px from top edge of SVG - single source of truth
+    
+    // Calculate space needed for labels below panels
+    // Panel width labels are positioned at startY + panelHeight + 25
+    // Text height for font-size 12 is approximately 15px
+    const spaceForLabels = 25 + 15; // Position offset + text height = 40px
+    
+    // Calculate the actual bottom of all content dynamically
+    const contentBottomY = startY + panelHeight + spaceForLabels;
     
     // Create SVG element - use full container width
     // Set viewBox to anchor content to top with exactly 10px top margin
     const viewBoxPaddingX = 200; // Extra space for height indicator on left
-    const topMargin = 10; // Exactly 10px top margin
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    // ViewBox: content starts at Y=0, total height includes top margin + content + bottom space
-    svg.setAttribute(
-        'viewBox',
-        `0 0 ${totalWidthPx + viewBoxPaddingX} ${startY + totalHeightPx}`
-      );
-          // Use YMin to align content to top instead of centering vertically
+    // ViewBox: content starts at Y=0, height includes all content from startY to contentBottomY
+    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${contentBottomY}`);
+    // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -399,10 +406,6 @@ function renderDiagram(solution) {
     dashPattern.appendChild(dashLine);
     defs.appendChild(dashPattern);
     svg.appendChild(defs);
-    
-    // Starting position - exactly 10px from top, with margin for height indicator on left
-    const startX = 80;
-    const startY = 10; // Exactly 10px from top edge of SVG
     
     // Draw height indicator (vertical line on the left)
     const heightLineY = startY;
@@ -550,7 +553,7 @@ function renderDiagram(solution) {
         }
         
         leftFoldLabel.setAttribute('x', leftLabelX);
-        leftFoldLabel.setAttribute('y', startY - 5);
+        leftFoldLabel.setAttribute('y', startY + 5); // Position at startY + 5 to ensure >= startY
         leftFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         leftFoldLabel.setAttribute('font-size', '10');
         leftFoldLabel.setAttribute('font-weight', '600');
@@ -575,7 +578,7 @@ function renderDiagram(solution) {
         // Right fold label
         const rightFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rightFoldLabel.setAttribute('x', rightFoldX);
-        rightFoldLabel.setAttribute('y', startY - 5);
+        rightFoldLabel.setAttribute('y', startY + 5); // Position at startY + 5 to ensure >= startY
         rightFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         rightFoldLabel.setAttribute('font-size', '10');
         rightFoldLabel.setAttribute('font-weight', '600');
