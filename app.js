@@ -712,7 +712,7 @@ function exportToPDF() {
     
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
     const startX = margin + leftMargin; // Moved right to prevent cutting
-    const startY = margin + 25; // Extra space for top label
+    const startY = margin + 15; // Extra space for top label
     
     // Set text direction
     if (isRTL) {
@@ -802,7 +802,7 @@ function exportToPDF() {
         // Fold labels - display only in mm, positioned above panels with spacing
         pdf.setFontSize(8);
         const foldAlign = isRTL ? 'right' : 'center';
-        const foldLabelY = startY - 10; // Position above panels
+        const foldLabelY = startY - 5; // Position above panels
         const innerLabelOffset = 10; // Increased fixed spacing offset for inner panel labels to prevent overlap (in mm)
         if (isOuter && i === 0) {
             // Left outer: label "140 mm" at left edge (currentX), label "40 mm" at right fold line
