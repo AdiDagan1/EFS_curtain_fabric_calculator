@@ -1,12 +1,12 @@
 // State management
 const state = {
-    curtainHeight: 2500, // in mm
-    curtainWidth: 59890, // in mm
+    curtainHeight: 0, // in mm
+    curtainWidth: 0, // in mm
     curtainName: '',
     fabricInventory: {
         2100: 0,
         2000: 0,
-        1900: 4,
+        1900: 0,
         1500: 0
     },
     diagramLanguage: 'en'
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateQuantityDisplay(parseInt(width));
     });
     initializeEventListeners();
-    calculate();
+    // Don't calculate automatically - wait for user to click calculate button
 });
 
 function initializeEventListeners() {
@@ -64,24 +64,21 @@ function initializeEventListeners() {
         state.curtainName = e.target.value.trim();
     });
 
-    // Curtain dimensions
+    // Curtain dimensions - don't calculate automatically
     document.getElementById('curtain-height').addEventListener('input', (e) => {
         state.curtainHeight = parseFloat(e.target.value) || 0;
-        calculate();
     });
 
     document.getElementById('curtain-width').addEventListener('input', (e) => {
         state.curtainWidth = parseFloat(e.target.value) || 0;
-        calculate();
     });
 
-    // Fabric quantity controls
+    // Fabric quantity controls - don't calculate automatically
     document.querySelectorAll('.btn-plus').forEach(btn => {
         btn.addEventListener('click', () => {
             const width = parseInt(btn.dataset.width);
             state.fabricInventory[width]++;
             updateQuantityDisplay(width);
-            calculate();
         });
     });
 
@@ -91,12 +88,11 @@ function initializeEventListeners() {
             if (state.fabricInventory[width] > 0) {
                 state.fabricInventory[width]--;
                 updateQuantityDisplay(width);
-                calculate();
             }
         });
     });
 
-    // Language selector
+    // Language selector - only update diagram if already calculated
     const languageSelect = document.getElementById('diagram-language');
     if (languageSelect) {
         languageSelect.addEventListener('change', (e) => {
@@ -112,6 +108,14 @@ function initializeEventListeners() {
     const exportBtn = document.getElementById('export-pdf-btn');
     if (exportBtn) {
         exportBtn.addEventListener('click', exportToPDF);
+    }
+
+    // Calculate button - triggers calculation
+    const calculateBtn = document.getElementById('calculate-btn');
+    if (calculateBtn) {
+        calculateBtn.addEventListener('click', () => {
+            calculate();
+        });
     }
 }
 
