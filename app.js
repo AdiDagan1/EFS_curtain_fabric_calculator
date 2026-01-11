@@ -3,6 +3,7 @@ const state = {
     curtainHeight: 0, // in mm
     curtainWidth: 0, // in mm
     curtainName: '',
+    projectName: '',
     fabricInventory: {
         2100: 0,
         2000: 0,
@@ -59,6 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeEventListeners() {
+    // Project name
+    const projectNameInput = document.getElementById('project-name');
+    if (projectNameInput) {
+        projectNameInput.addEventListener('input', (e) => {
+            state.projectName = e.target.value.trim();
+        });
+    }
+    
     // Curtain name
     document.getElementById('curtain-name').addEventListener('input', (e) => {
         state.curtainName = e.target.value.trim();
@@ -337,25 +346,16 @@ function renderDiagram(solution) {
     const maxWidth = containerRect.width || 1200; // Fallback if container not ready
     const maxHeight = containerRect.height || 600; // Fallback if container not ready
     
-    // All values are in mm
-    const totalCurtainWidthMm = 2 * solution.outerPanelWidth + (solution.parts - 2) * solution.innerPanelWidth;
-    const gapPixels = 40; // Fixed gap between panels in pixels (consistent spacing regardless of scale)
-    const totalWidthMm = totalCurtainWidthMm;
-    const curtainHeightMm = state.curtainHeight;
+    // Fixed panel dimensions for display (not proportional to actual measurements)
+    const FIXED_PANEL_HEIGHT = 200; // Fixed height in pixels for all panels
+    const FIXED_PANEL_WIDTH = 150; // Fixed width in pixels for all panels
+    const gapPixels = 40; // Fixed gap between panels in pixels
     
-    // Scale to fit container (use full available space, maximize scale)
-    const margin = 60; // Reduced margins for labels to maximize diagram size
-    const availableWidth = maxWidth - margin * 2 - (solution.parts - 1) * gapPixels;
-    const availableHeight = maxHeight - margin * 2;
-    const scaleX = availableWidth / totalWidthMm;
-    const scaleY = availableHeight / curtainHeightMm;
-    const scale = Math.min(scaleX, scaleY) * 0.95; // Use 95% of available space to ensure everything fits
-    
-    // Calculate dimensions in pixels (all in mm, scale directly)
-    const panelHeight = curtainHeightMm * scale;
-    const outerPanelWidth = solution.outerPanelWidth * scale;
-    const innerPanelWidth = solution.innerPanelWidth * scale;
-    const gapPx = gapPixels; // Fixed gap in pixels (not scaled, consistent spacing)
+    // Use fixed dimensions for display (calculation remains unchanged)
+    const panelHeight = FIXED_PANEL_HEIGHT;
+    const outerPanelWidth = FIXED_PANEL_WIDTH;
+    const innerPanelWidth = FIXED_PANEL_WIDTH;
+    const gapPx = gapPixels;
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
@@ -365,7 +365,8 @@ function renderDiagram(solution) {
     const startY = 10; // Exactly 10px from top edge of SVG - single source of truth
     
     // Calculate space needed for labels above panels (total width line and fold labels)
-    const spaceAbovePanels = 25; // Space for labels above panels
+    // Total width line is at Y = -5, label is at Y = -13, so we need space from -15 to startY
+    const spaceAbovePanels = 25; // Space for labels above panels (from -15 to startY=10)
     
     // Calculate space needed for labels below panels
     // Panel width labels are positioned at startY + panelHeight + 25
@@ -381,9 +382,9 @@ function renderDiagram(solution) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    // ViewBox: includes space above panels for labels, panels start at startY, and space below for labels
-    // ViewBox Y starts at 0, but we need to include spaceAbovePanels in the height
-    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + spaceAbovePanels}`);
+    // ViewBox: includes space above panels (from -15 for total width line to startY), panels, and space below
+    // Adjust viewBox to start at negative Y to include total width line
+    svg.setAttribute('viewBox', `0 -15 ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + 15}`);
     // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
@@ -436,8 +437,8 @@ function renderDiagram(solution) {
     heightLabel.textContent = `${state.curtainHeight.toFixed(0)} mm`;
     svg.appendChild(heightLabel);
     
-    // Draw total width line (above panels) - moved higher
-    const totalWidthLineY = 5; // Positioned above panels (panels start at startY=10)
+    // Draw total width line (above fold labels) - moved higher to be above fold measurements
+    const totalWidthLineY = -5; // Positioned well above fold labels (which are at startY-2=8)
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
@@ -447,7 +448,7 @@ function renderDiagram(solution) {
     totalWidthLine.setAttribute('stroke-width', '2');
     svg.appendChild(totalWidthLine);
     
-    // Total width label (centered) - display only in mm
+    // Total width label (centered) - display only in mm, positioned above the line
     const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
     totalWidthLabel.setAttribute('y', totalWidthLineY - 8);
@@ -479,54 +480,34 @@ function renderDiagram(solution) {
         panelRect.setAttribute('stroke-width', '2');
         svg.appendChild(panelRect);
         
-        // Fold lines (dashed vertical lines) - values in mm
+        // Fold lines (dashed vertical lines) - calculate position based on proportion of panel width
         // Outer panels: 140mm (outer edge) + 40mm (inner edge) = 180mm total
         // Inner panels: 40mm on each side = 80mm total
         const OUTER_FOLD_MM = 140; // 140mm (outer edge)
         const INNER_FOLD_MM = 40;  // 40mm (inner edge or both sides for inner panels)
         let leftFoldX, rightFoldX;
         
+        // Calculate fold positions as proportion of panel width (fixed display size)
+        // totalWidth is the actual width in mm, panelWidth is the fixed display width in pixels
+        const foldScale = panelWidth / totalWidth; // Scale factor for this panel
+        
         if (isOuter) {
             if (i === 0) {
                 // Left outer panel: 140mm fold on left (outer edge), 40mm fold on right (inner edge)
-                // Move the 140mm fold line slightly to the right to match spacing of right outer panel
-                leftFoldX = currentX + OUTER_FOLD_MM * scale; // 140mm from left edge (moved right)
-                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
+                leftFoldX = currentX + OUTER_FOLD_MM * foldScale; // 140mm from left edge
+                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * foldScale; // 40mm from right edge
             } else {
                 // Right outer panel: 40mm fold on left (inner edge), 140mm fold on right (outer edge)
-                leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
-                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale; // 140mm from right edge
+                leftFoldX = currentX + INNER_FOLD_MM * foldScale; // 40mm from left edge
+                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * foldScale; // 140mm from right edge
             }
         } else {
             // Inner panel: 40mm on each side
-            leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
-            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
+            leftFoldX = currentX + INNER_FOLD_MM * foldScale; // 40mm from left edge
+            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * foldScale; // 40mm from right edge
         }
         
-        // Add dashed lines along the length of the panel (left and right edges)
-        // Move left edge line slightly to the right to avoid merging with panel border
-        const leftEdgeOffset = 3; // Offset in pixels to separate from border
-        const leftEdgeLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        leftEdgeLine.setAttribute('x1', currentX + leftEdgeOffset);
-        leftEdgeLine.setAttribute('y1', startY);
-        leftEdgeLine.setAttribute('x2', currentX + leftEdgeOffset);
-        leftEdgeLine.setAttribute('y2', startY + panelHeight);
-        leftEdgeLine.setAttribute('stroke', '#666');
-        leftEdgeLine.setAttribute('stroke-width', '1.5');
-        leftEdgeLine.setAttribute('stroke-dasharray', '4,4');
-        svg.appendChild(leftEdgeLine);
-        
-        const rightEdgeLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        rightEdgeLine.setAttribute('x1', currentX + panelWidth);
-        rightEdgeLine.setAttribute('y1', startY);
-        rightEdgeLine.setAttribute('x2', currentX + panelWidth);
-        rightEdgeLine.setAttribute('y2', startY + panelHeight);
-        rightEdgeLine.setAttribute('stroke', '#666');
-        rightEdgeLine.setAttribute('stroke-width', '1.5');
-        rightEdgeLine.setAttribute('stroke-dasharray', '4,4');
-        svg.appendChild(rightEdgeLine);
-        
-        // Draw left fold line
+        // Draw left fold line (only dashed line on left side)
         const leftFoldLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         leftFoldLine.setAttribute('x1', leftFoldX);
         leftFoldLine.setAttribute('y1', startY);
@@ -607,22 +588,9 @@ function renderDiagram(solution) {
         
         // Net width line (horizontal dashed line strictly between the two fold lines)
         // The net width is the area between the folded edges
-        // For outer panels: net width starts after 140mm (left) or 40mm (right), ends before 40mm (left) or 140mm (right)
-        // For inner panels: net width starts after 40mm, ends before 40mm
-        let netWidthStartX, netWidthEndX;
-        if (isOuter && i === 0) {
-            // Left outer: after 140mm fold, before 40mm fold
-            netWidthStartX = currentX + OUTER_FOLD_MM * scale;
-            netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
-        } else if (isOuter && i === solution.parts - 1) {
-            // Right outer: after 40mm fold, before 140mm fold
-            netWidthStartX = currentX + INNER_FOLD_MM * scale;
-            netWidthEndX = currentX + panelWidth - OUTER_FOLD_MM * scale;
-        } else {
-            // Inner: after 40mm fold, before 40mm fold
-            netWidthStartX = currentX + INNER_FOLD_MM * scale;
-            netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
-        }
+        // Use the fold line positions we already calculated
+        const netWidthStartX = leftFoldX;
+        const netWidthEndX = rightFoldX;
         const netWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         netWidthLine.setAttribute('x1', netWidthStartX);
         netWidthLine.setAttribute('y1', startY + panelHeight / 2);
@@ -734,6 +702,16 @@ async function exportToPDF() {
         const pdfWidth = 297;
         const pdfHeight = 210;
         const margin = 10; // Small margin
+        const topMargin = 25; // Extra margin at top for project/curtain names
+        
+        // Add project name and curtain name at the top of PDF
+        pdf.setFontSize(14);
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 0, 0);
+        const projectName = state.projectName.trim() || 'Project';
+        const curtainName = state.curtainName.trim() || 'Curtain';
+        pdf.text(`Project: ${projectName}`, margin, 10, { align: 'left' });
+        pdf.text(`Curtain: ${curtainName}`, margin, 18, { align: 'left' });
         
         // Calculate dimensions to fit canvas in PDF
         const canvasWidth = canvas.width;
@@ -752,9 +730,9 @@ async function exportToPDF() {
             imgWidth = imgHeight * canvasAspectRatio;
         }
         
-        // Center the image
+        // Center the image horizontally, position below project/curtain names
         const x = (pdfWidth - imgWidth) / 2;
-        const y = (pdfHeight - imgHeight) / 2;
+        const y = topMargin; // Position below project/curtain names
         
         // Convert canvas to image data
         const imgData = canvas.toDataURL('image/png');
@@ -763,8 +741,8 @@ async function exportToPDF() {
         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
         
         // Generate PDF filename with curtain name
-        const curtainName = state.curtainName.trim() || 'Curtain';
-        const filename = `${curtainName}_חישוב_בדים.pdf`;
+        const filenameCurtainName = state.curtainName.trim() || 'Curtain';
+        const filename = `${filenameCurtainName}_חישוב_בדים.pdf`;
         
         // Save PDF
         pdf.save(filename);
