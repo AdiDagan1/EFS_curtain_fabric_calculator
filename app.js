@@ -359,12 +359,12 @@ function renderDiagram(solution) {
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    const totalHeightPx = panelHeight + 150; // Extra space for labels
+    const totalHeightPx = panelHeight + 120; // Reduced space for labels to move content up
     
     // Create SVG element - use full container width
-    // Adjust viewBox to move content up and prevent cutting
+    // Adjust viewBox to move content up and prevent cutting at bottom
     const viewBoxPaddingX = 200; // Extra space for height indicator
-    const viewBoxPaddingY = 80; // Reduced top padding to move content up
+    const viewBoxPaddingY = 50; // Minimal top padding to move content up
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
@@ -397,7 +397,7 @@ function renderDiagram(solution) {
     
     // Starting position (with margin for height indicator) - move up to prevent cutting
     const startX = 80;
-    const startY = 40; // Moved up to prevent cutting at top
+    const startY = 10; // Moved up significantly to prevent cutting at top and reduce gap
     
     // Draw height indicator (vertical line on the left)
     const heightLineY = startY;
@@ -477,16 +477,17 @@ function renderDiagram(solution) {
         if (isOuter) {
             if (i === 0) {
                 // Left outer panel: 140mm fold on left (outer edge), 40mm fold on right (inner edge)
-                leftFoldX = currentX; // Left edge of panel
+                // Move the 140mm fold line slightly to the right to match spacing of right outer panel
+                leftFoldX = currentX + OUTER_FOLD_MM * scale; // 140mm from left edge (moved right)
                 rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
             } else {
                 // Right outer panel: 40mm fold on left (inner edge), 140mm fold on right (outer edge)
-                leftFoldX = currentX; // Left edge of panel (40mm fold)
+                leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
                 rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale; // 140mm from right edge
             }
         } else {
             // Inner panel: 40mm on each side
-            leftFoldX = currentX; // Left edge
+            leftFoldX = currentX + INNER_FOLD_MM * scale; // 40mm from left edge
             rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
         }
         
@@ -524,9 +525,26 @@ function renderDiagram(solution) {
         leftFoldLine.setAttribute('stroke-dasharray', '4,4');
         svg.appendChild(leftFoldLine);
         
-        // Left fold label
+        // Left fold label - position based on actual fold line position
         const leftFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        leftFoldLabel.setAttribute('x', leftFoldX);
+        let leftLabelX = leftFoldX;
+        let leftLabelText = '';
+        
+        if (isOuter && i === 0) {
+            // Left outer: 140mm fold is at leftFoldX, label should be at the left edge (currentX)
+            leftLabelX = currentX; // Label at left edge
+            leftLabelText = `140 mm`;
+        } else if (isOuter && i === solution.parts - 1) {
+            // Right outer: 40mm fold is at leftFoldX
+            leftLabelX = leftFoldX;
+            leftLabelText = `40 mm`;
+        } else {
+            // Inner: 40mm fold is at leftFoldX
+            leftLabelX = leftFoldX;
+            leftLabelText = `40 mm`;
+        }
+        
+        leftFoldLabel.setAttribute('x', leftLabelX);
         leftFoldLabel.setAttribute('y', startY - 5);
         leftFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         leftFoldLabel.setAttribute('font-size', '10');
@@ -535,13 +553,7 @@ function renderDiagram(solution) {
         if (isRTL) {
             leftFoldLabel.setAttribute('direction', 'rtl');
         }
-        if (isOuter && i === 0) {
-            leftFoldLabel.textContent = `140 mm`;
-        } else if (isOuter && i === solution.parts - 1) {
-            leftFoldLabel.textContent = `40 mm`;
-        } else {
-            leftFoldLabel.textContent = `40 mm`;
-        }
+        leftFoldLabel.textContent = leftLabelText;
         svg.appendChild(leftFoldLabel);
         
         // Draw right fold line
@@ -788,7 +800,7 @@ function exportToPDF() {
         } else if (isOuter && i === solution.parts - 1) {
             pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
             pdf.text(`140 mm`, rightFoldX, startY - 2, { align: foldAlign });
-        } else {
+    } else {
             pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
             pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
         }
