@@ -308,35 +308,39 @@ function renderDiagram(solution) {
     
     // Get container dimensions to use full available space
     const containerRect = container.getBoundingClientRect();
-    const maxWidth = containerRect.width - 40; // Leave small margin
-    const maxHeight = containerRect.height - 40; // Leave small margin
+    const maxWidth = containerRect.width || 1200; // Fallback if container not ready
+    const maxHeight = containerRect.height || 600; // Fallback if container not ready
     
     // All values are in mm
     const totalCurtainWidthMm = 2 * solution.outerPanelWidth + (solution.parts - 2) * solution.innerPanelWidth;
-    const gap = 20; // Gap between panels in mm
-    const totalWidthMm = totalCurtainWidthMm + (solution.parts - 1) * gap;
+    const gapPixels = 40; // Fixed gap between panels in pixels (consistent spacing regardless of scale)
+    const totalWidthMm = totalCurtainWidthMm;
     const curtainHeightMm = state.curtainHeight;
     
-    // Scale to fit container (use full available space)
-    const margin = 120; // Margins for labels
-    const scaleX = (maxWidth - margin * 2) / totalWidthMm;
-    const scaleY = (maxHeight - margin * 2) / curtainHeightMm;
-    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit everything
+    // Scale to fit container (use full available space, maximize scale)
+    const margin = 100; // Margins for labels
+    const availableWidth = maxWidth - margin * 2 - (solution.parts - 1) * gapPixels;
+    const availableHeight = maxHeight - margin * 2;
+    const scaleX = availableWidth / totalWidthMm;
+    const scaleY = availableHeight / curtainHeightMm;
+    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit everything, but maximize it
     
     // Calculate dimensions in pixels (all in mm, scale directly)
     const panelHeight = curtainHeightMm * scale;
     const outerPanelWidth = solution.outerPanelWidth * scale;
     const innerPanelWidth = solution.innerPanelWidth * scale;
-    const gapPx = gap * scale;
+    const gapPx = gapPixels; // Fixed gap in pixels (not scaled, consistent spacing)
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
     const totalHeightPx = panelHeight + 150; // Extra space for labels
     
-    // Create SVG element
+    // Create SVG element - use full container width
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', totalWidthPx + 200); // Extra space for height indicator
-    svg.setAttribute('height', totalHeightPx + 100); // Extra space for top labels
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + 200} ${totalHeightPx + 100}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     if (isRTL) {
@@ -594,7 +598,8 @@ function renderDiagram(solution) {
         if (isRTL) {
             panelWidthLabel.setAttribute('direction', 'rtl');
         }
-        panelWidthLabel.textContent = `${t.panelWidth}: ${totalWidth.toFixed(1)} mm`;
+        // Display only the number, without "Panel Width" text
+        panelWidthLabel.textContent = `${totalWidth.toFixed(1)} mm`;
         svg.appendChild(panelWidthLabel);
         
         // Move to next panel
