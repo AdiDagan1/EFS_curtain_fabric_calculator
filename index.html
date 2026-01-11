@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curtain Fabric Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Curtain Fabric Calculator</h1>
+            <p class="subtitle">Calculate optimal fabric cutting with minimal waste</p>
+        </header>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>Curtain Dimensions</h2>
+                <div class="input-group">
+                    <label for="curtain-height">Curtain Total Height (cm)</label>
+                    <input type="number" id="curtain-height" min="1" value="250" step="1">
+                </div>
+                <div class="input-group">
+                    <label for="curtain-width">Curtain Total Width (cm)</label>
+                    <input type="number" id="curtain-width" min="1" value="5989" step="1">
+                </div>
+
+                <h2>Fabric Rolls Inventory</h2>
+                <div class="fabric-inventory">
+                    <div class="fabric-item">
+                        <label>2100 mm fabric</label>
+                        <div class="quantity-control">
+                            <button class="btn-minus" data-width="2100">−</button>
+                            <span class="quantity" data-width="2100">0</span>
+                            <button class="btn-plus" data-width="2100">+</button>
+                        </div>
+                    </div>
+                    <div class="fabric-item">
+                        <label>2000 mm fabric</label>
+                        <div class="quantity-control">
+                            <button class="btn-minus" data-width="2000">−</button>
+                            <span class="quantity" data-width="2000">0</span>
+                            <button class="btn-plus" data-width="2000">+</button>
+                        </div>
+                    </div>
+                    <div class="fabric-item">
+                        <label>1900 mm fabric</label>
+                        <div class="quantity-control">
+                            <button class="btn-minus" data-width="1900">−</button>
+                            <span class="quantity" data-width="1900">0</span>
+                            <button class="btn-plus" data-width="1900">+</button>
+                        </div>
+                    </div>
+                    <div class="fabric-item">
+                        <label>1500 mm fabric</label>
+                        <div class="quantity-control">
+                            <button class="btn-minus" data-width="1500">−</button>
+                            <span class="quantity" data-width="1500">0</span>
+                            <button class="btn-plus" data-width="1500">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <h2>Calculation Results</h2>
+                <div id="results" class="results">
+                    <p class="placeholder">Enter dimensions and fabric inventory to see results</p>
+                </div>
+                <div id="diagram-container" class="diagram-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
