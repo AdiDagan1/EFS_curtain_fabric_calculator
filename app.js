@@ -2,6 +2,7 @@
 const state = {
     curtainHeight: 250,
     curtainWidth: 5989,
+    curtainName: '',
     fabricInventory: {
         2100: 0,
         2000: 0,
@@ -58,6 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeEventListeners() {
+    // Curtain name
+    document.getElementById('curtain-name').addEventListener('input', (e) => {
+        state.curtainName = e.target.value.trim();
+    });
+
     // Curtain dimensions
     document.getElementById('curtain-height').addEventListener('input', (e) => {
         state.curtainHeight = parseFloat(e.target.value) || 0;
@@ -195,12 +201,10 @@ function findOptimalSolution() {
         for (let parts = 2; parts <= availableRolls; parts++) {
             // Calculate net width per panel using the correct formula
             // netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts
-            const netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts;
+            let netWidth = (totalCurtainWidth + 2 * 180 + (parts - 2) * 80) / parts;
             
-            // Reject if netWidth is not an integer
-            if (!Number.isInteger(netWidth)) {
-                continue;
-            }
+            // Round netWidth to 1 decimal place (allow decimal values for real-world fabric cutting)
+            netWidth = Math.round(netWidth * 10) / 10;
             
             // Calculate panel total widths
             const outerPanelWidth = netWidth + 180; // 140 (outer edge) + 40 (inner edge)
@@ -377,6 +381,9 @@ function renderDiagram(solution) {
     totalWidthLabel.setAttribute('font-size', '14');
     totalWidthLabel.setAttribute('font-weight', '600');
     totalWidthLabel.setAttribute('fill', '#000');
+    if (isRTL) {
+        totalWidthLabel.setAttribute('direction', 'rtl');
+    }
     totalWidthLabel.textContent = `${t.totalWidth}: ${state.curtainWidth} ${t.cm}`;
     svg.appendChild(totalWidthLabel);
     
@@ -434,10 +441,13 @@ function renderDiagram(solution) {
         const leftFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         leftFoldLabel.setAttribute('x', leftFoldX);
         leftFoldLabel.setAttribute('y', startY - 5);
-        leftFoldLabel.setAttribute('text-anchor', 'middle');
+        leftFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         leftFoldLabel.setAttribute('font-size', '10');
         leftFoldLabel.setAttribute('font-weight', '600');
         leftFoldLabel.setAttribute('fill', '#666');
+        if (isRTL) {
+            leftFoldLabel.setAttribute('direction', 'rtl');
+        }
         if (isOuter && i === 0) {
             leftFoldLabel.textContent = `140 ${t.cm}`;
         } else if (isOuter && i === solution.parts - 1) {
@@ -462,10 +472,13 @@ function renderDiagram(solution) {
         const rightFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rightFoldLabel.setAttribute('x', rightFoldX);
         rightFoldLabel.setAttribute('y', startY - 5);
-        rightFoldLabel.setAttribute('text-anchor', 'middle');
+        rightFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         rightFoldLabel.setAttribute('font-size', '10');
         rightFoldLabel.setAttribute('font-weight', '600');
         rightFoldLabel.setAttribute('fill', '#666');
+        if (isRTL) {
+            rightFoldLabel.setAttribute('direction', 'rtl');
+        }
         if (isOuter && i === 0) {
             rightFoldLabel.textContent = `40 ${t.cm}`;
         } else if (isOuter && i === solution.parts - 1) {
@@ -511,6 +524,9 @@ function renderDiagram(solution) {
         netWidthLabel.setAttribute('font-size', '10');
         netWidthLabel.setAttribute('font-weight', '600');
         netWidthLabel.setAttribute('fill', '#666');
+        if (isRTL) {
+            netWidthLabel.setAttribute('direction', 'rtl');
+        }
         netWidthLabel.textContent = `${solution.netWidth.toFixed(1)} ${t.cm} (${t.netWidth})`;
         svg.appendChild(netWidthLabel);
         
@@ -522,6 +538,9 @@ function renderDiagram(solution) {
         panelWidthLabel.setAttribute('font-size', '12');
         panelWidthLabel.setAttribute('font-weight', '600');
         panelWidthLabel.setAttribute('fill', '#000');
+        if (isRTL) {
+            panelWidthLabel.setAttribute('direction', 'rtl');
+        }
         panelWidthLabel.textContent = `${t.panelWidth}: ${totalWidth.toFixed(1)} ${t.cm}`;
         svg.appendChild(panelWidthLabel);
         
@@ -602,11 +621,11 @@ function exportToPDF() {
     pdf.setLineWidth(0.5);
     pdf.line(startX, startY - 10, startX + totalWidthPx, startY - 10);
     
-    // Total width label (centered)
+    // Total width label (centered for LTR, right-aligned for RTL)
     pdf.setFontSize(12);
     pdf.setFont(undefined, 'bold');
     pdf.text(`${t.totalWidth}: ${state.curtainWidth} ${t.cm}`, startX + totalWidthPx / 2, startY - 15, {
-        align: 'center'
+        align: isRTL ? 'right' : 'center'
     });
     
     // Draw panels
@@ -656,15 +675,16 @@ function exportToPDF() {
         
         // Fold labels
         pdf.setFontSize(8);
+        const foldAlign = isRTL ? 'right' : 'center';
         if (isOuter && i === 0) {
-            pdf.text(`140 ${t.cm}`, leftFoldX, startY - 2, { align: 'center' });
-            pdf.text(`40 ${t.cm}`, rightFoldX, startY - 2, { align: 'center' });
+            pdf.text(`140 ${t.cm}`, leftFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`40 ${t.cm}`, rightFoldX, startY - 2, { align: foldAlign });
         } else if (isOuter && i === solution.parts - 1) {
-            pdf.text(`40 ${t.cm}`, leftFoldX, startY - 2, { align: 'center' });
-            pdf.text(`140 ${t.cm}`, rightFoldX, startY - 2, { align: 'center' });
+            pdf.text(`40 ${t.cm}`, leftFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`140 ${t.cm}`, rightFoldX, startY - 2, { align: foldAlign });
     } else {
-            pdf.text(`40 ${t.cm}`, leftFoldX, startY - 2, { align: 'center' });
-            pdf.text(`40 ${t.cm}`, rightFoldX, startY - 2, { align: 'center' });
+            pdf.text(`40 ${t.cm}`, leftFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`40 ${t.cm}`, rightFoldX, startY - 2, { align: foldAlign });
         }
         
         // Net width line (horizontal dashed between fold lines)
@@ -673,7 +693,7 @@ function exportToPDF() {
         // Net width label
         pdf.setFontSize(8);
         pdf.text(`${solution.netWidth.toFixed(1)} ${t.cm}`, (netWidthStartX + netWidthEndX) / 2, startY + panelHeight / 2 - 3, {
-            align: 'center'
+            align: isRTL ? 'right' : 'center'
         });
         
         // Panel width label (below)
@@ -681,14 +701,18 @@ function exportToPDF() {
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
         pdf.text(`${t.panelWidth}: ${totalWidth.toFixed(1)} ${t.cm}`, currentX + panelWidth / 2, startY + panelHeight + 8, {
-            align: 'center'
+            align: isRTL ? 'right' : 'center'
         });
         
         currentX += panelWidth + gapPx;
     }
     
+    // Generate PDF filename with curtain name
+    const curtainName = state.curtainName.trim() || 'Curtain';
+    const filename = `${curtainName}_חישוב_בדים.pdf`;
+    
     // Save PDF
-    pdf.save('curtain-fabric-layout.pdf');
+    pdf.save(filename);
 }
 
 // Helper function to draw dashed lines in PDF
