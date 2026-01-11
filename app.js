@@ -359,7 +359,7 @@ function renderDiagram(solution) {
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    const totalHeightPx = panelHeight + 120; // Space for labels below panels
+    const totalHeightPx = panelHeight + 100;
     
     // Create SVG element - use full container width
     // Set viewBox to anchor content to top with exactly 10px top margin
@@ -369,8 +369,11 @@ function renderDiagram(solution) {
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
     // ViewBox: content starts at Y=0, total height includes top margin + content + bottom space
-    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${topMargin + totalHeightPx}`);
-    // Use YMin to align content to top instead of centering vertically
+    svg.setAttribute(
+        'viewBox',
+        `0 0 ${totalWidthPx + viewBoxPaddingX} ${startY + totalHeightPx}`
+      );
+          // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -427,7 +430,7 @@ function renderDiagram(solution) {
     svg.appendChild(heightLabel);
     
     // Draw total width line (above panels)
-    const totalWidthLineY = startY - 40;
+    const totalWidthLineY = startY + 20;
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
