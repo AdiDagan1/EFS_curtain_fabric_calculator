@@ -336,10 +336,13 @@ function renderDiagram(solution) {
     const totalHeightPx = panelHeight + 150; // Extra space for labels
     
     // Create SVG element - use full container width
+    // Adjust viewBox to move content up and prevent cutting
+    const viewBoxPaddingX = 200; // Extra space for height indicator
+    const viewBoxPaddingY = 80; // Reduced top padding to move content up
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + 200} ${totalHeightPx + 100}`);
+    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${totalHeightPx + viewBoxPaddingY}`);
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -366,9 +369,9 @@ function renderDiagram(solution) {
     defs.appendChild(dashPattern);
     svg.appendChild(defs);
     
-    // Starting position (with margin for height indicator)
+    // Starting position (with margin for height indicator) - move up to prevent cutting
     const startX = 80;
-    const startY = 80;
+    const startY = 40; // Moved up to prevent cutting at top
     
     // Draw height indicator (vertical line on the left)
     const heightLineY = startY;
@@ -462,10 +465,12 @@ function renderDiagram(solution) {
         }
         
         // Add dashed lines along the length of the panel (left and right edges)
+        // Move left edge line slightly to the right to avoid merging with panel border
+        const leftEdgeOffset = 3; // Offset in pixels to separate from border
         const leftEdgeLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        leftEdgeLine.setAttribute('x1', currentX);
+        leftEdgeLine.setAttribute('x1', currentX + leftEdgeOffset);
         leftEdgeLine.setAttribute('y1', startY);
-        leftEdgeLine.setAttribute('x2', currentX);
+        leftEdgeLine.setAttribute('x2', currentX + leftEdgeOffset);
         leftEdgeLine.setAttribute('y2', startY + panelHeight);
         leftEdgeLine.setAttribute('stroke', '#666');
         leftEdgeLine.setAttribute('stroke-width', '1.5');
@@ -668,11 +673,19 @@ function exportToPDF() {
     pdf.line(heightLineX, startY, heightLineX, startY + panelHeight);
     
     // Height label (rotated) - display only in mm
+    // Add label next to height line in PDF
     pdf.setFontSize(10);
     pdf.setTextColor(0, 0, 0);
-    pdf.text(`${state.curtainHeight.toFixed(0)} mm`, heightLineX - 5, startY + panelHeight / 2, {
+    const heightText = `${state.curtainHeight.toFixed(0)} mm`;
+    // Draw rotated text
+    pdf.text(heightText, heightLineX - 8, startY + panelHeight / 2, {
         angle: 90,
         align: 'center'
+    });
+    // Also add a horizontal label for better visibility
+    pdf.setFontSize(9);
+    pdf.text(heightText, heightLineX - 15, startY - 5, {
+        align: 'left'
     });
     
     // Draw total width line
@@ -731,7 +744,9 @@ function exportToPDF() {
         }
         
         // Draw dashed lines along the length of the panel (left and right edges)
-        drawDashedLine(pdf, currentX, startY, currentX, startY + panelHeight);
+        // Move left edge line slightly to the right to avoid merging with panel border
+        const leftEdgeOffset = 1; // Offset in mm to separate from border
+        drawDashedLine(pdf, currentX + leftEdgeOffset, startY, currentX + leftEdgeOffset, startY + panelHeight);
         drawDashedLine(pdf, currentX + panelWidth, startY, currentX + panelWidth, startY + panelHeight);
         
         // Draw fold lines
@@ -761,11 +776,11 @@ function exportToPDF() {
             align: isRTL ? 'right' : 'center'
         });
         
-        // Panel width label (below) - display only in mm
+        // Panel width label (below) - display only the number in mm
         pdf.setFontSize(10);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
-        pdf.text(`${t.panelWidth}: ${totalWidth.toFixed(1)} mm`, currentX + panelWidth / 2, startY + panelHeight + 8, {
+        pdf.text(`${totalWidth.toFixed(1)} mm`, currentX + panelWidth / 2, startY + panelHeight + 8, {
             align: isRTL ? 'right' : 'center'
         });
         
