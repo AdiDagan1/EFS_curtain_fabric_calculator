@@ -714,15 +714,24 @@ function renderDiagram(solution) {
         image2Circle.setAttribute('stroke-width', '2');
         svg.appendChild(image2Circle);
         
-        // Add image 2.png inside the circle - use both href and xlink:href for compatibility
+        // Add image 2.png inside the circle - convert to base64 for PDF compatibility
         const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '2.png'); // Use xlink:href for better compatibility
-        image2Img.setAttribute('href', '2.png'); // Also set href for modern browsers
         image2Img.setAttribute('x', image2X - 25);
         image2Img.setAttribute('y', image2Y - 25);
         image2Img.setAttribute('width', '50');
         image2Img.setAttribute('height', '50');
         image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        // Load image and convert to base64
+        loadImageAsBase64('2.png').then(base64 => {
+            if (base64) {
+                image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
+                image2Img.setAttribute('href', base64);
+            }
+        }).catch(() => {
+            // If image fails to load, keep the original href
+            image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '2.png');
+            image2Img.setAttribute('href', '2.png');
+        });
         svg.appendChild(image2Img);
     }
     
@@ -778,6 +787,56 @@ function renderDiagram(solution) {
     state.diagramSolution = solution;
     
     container.appendChild(svg);
+}
+
+// Helper function to load image and convert to base64 for PDF compatibility
+function loadImageAsBase64(imagePath) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        // Try different paths
+        const paths = [
+            imagePath,
+            `./${imagePath}`,
+            `/${imagePath}`,
+            `${window.location.origin}/${imagePath}`
+        ];
+        
+        let currentPathIndex = 0;
+        
+        const tryNextPath = () => {
+            if (currentPathIndex >= paths.length) {
+                reject(new Error('All image paths failed'));
+                return;
+            }
+            
+            const path = paths[currentPathIndex++];
+            
+            img.onload = function() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const base64 = canvas.toDataURL('image/png');
+                    resolve(base64);
+                } catch (error) {
+                    console.warn('Failed to convert image to base64:', error);
+                    tryNextPath(); // Try next path on conversion error
+                }
+            };
+            
+            img.onerror = function() {
+                tryNextPath(); // Try next path on load error
+            };
+            
+            img.src = path;
+        };
+        
+        tryNextPath();
+    });
 }
 
 // Export diagram to PDF using html2canvas for Unicode support
