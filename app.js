@@ -364,6 +364,9 @@ function renderDiagram(solution) {
     const startX = 80;
     const startY = 10; // Exactly 10px from top edge of SVG - single source of truth
     
+    // Calculate space needed for labels above panels (total width line and fold labels)
+    const spaceAbovePanels = 25; // Space for labels above panels
+    
     // Calculate space needed for labels below panels
     // Panel width labels are positioned at startY + panelHeight + 25
     // Text height for font-size 12 is approximately 15px
@@ -378,8 +381,9 @@ function renderDiagram(solution) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    // ViewBox: content starts at Y=0, height includes all content from startY to contentBottomY
-    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${contentBottomY}`);
+    // ViewBox: includes space above panels for labels, panels start at startY, and space below for labels
+    // ViewBox Y starts at 0, but we need to include spaceAbovePanels in the height
+    svg.setAttribute('viewBox', `0 0 ${totalWidthPx + viewBoxPaddingX} ${contentBottomY + spaceAbovePanels}`);
     // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
@@ -432,8 +436,8 @@ function renderDiagram(solution) {
     heightLabel.textContent = `${state.curtainHeight.toFixed(0)} mm`;
     svg.appendChild(heightLabel);
     
-    // Draw total width line (above panels)
-    const totalWidthLineY = startY + 20;
+    // Draw total width line (above panels) - moved higher
+    const totalWidthLineY = 5; // Positioned above panels (panels start at startY=10)
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
@@ -446,7 +450,7 @@ function renderDiagram(solution) {
     // Total width label (centered) - display only in mm
     const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
-    totalWidthLabel.setAttribute('y', totalWidthLineY - 10);
+    totalWidthLabel.setAttribute('y', totalWidthLineY - 8);
     totalWidthLabel.setAttribute('text-anchor', 'middle');
     totalWidthLabel.setAttribute('font-size', '14');
     totalWidthLabel.setAttribute('font-weight', '600');
@@ -553,7 +557,7 @@ function renderDiagram(solution) {
         }
         
         leftFoldLabel.setAttribute('x', leftLabelX);
-        leftFoldLabel.setAttribute('y', startY + 5); // Position at startY + 5 to ensure >= startY
+        leftFoldLabel.setAttribute('y', 5); // Positioned above panels (panels start at startY=10)
         leftFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         leftFoldLabel.setAttribute('font-size', '10');
         leftFoldLabel.setAttribute('font-weight', '600');
@@ -578,7 +582,7 @@ function renderDiagram(solution) {
         // Right fold label
         const rightFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rightFoldLabel.setAttribute('x', rightFoldX);
-        rightFoldLabel.setAttribute('y', startY + 5); // Position at startY + 5 to ensure >= startY
+        rightFoldLabel.setAttribute('y', 5); // Positioned above panels (panels start at startY=10)
         rightFoldLabel.setAttribute('text-anchor', isRTL ? 'end' : 'middle');
         rightFoldLabel.setAttribute('font-size', '10');
         rightFoldLabel.setAttribute('font-weight', '600');
@@ -688,13 +692,15 @@ function exportToPDF() {
     
     // All values are in mm
     const totalCurtainWidthMm = 2 * solution.outerPanelWidth + (solution.parts - 2) * solution.innerPanelWidth;
-    const gap = 20; // Gap between panels in mm
+    const gap = 40; // Increased gap between panels in mm to prevent fold labels from overlapping
     const totalWidthMm = totalCurtainWidthMm + (solution.parts - 1) * gap;
     const curtainHeightMm = state.curtainHeight;
     
     // Scale to fit in PDF with margins (all in mm)
     const margin = 20; // 20mm margins
-    const scaleX = (pdfWidth - margin * 2) / totalWidthMm;
+    const rightMargin = 25; // Extra right margin to prevent cutting
+    const leftMargin = 30; // Extra left margin to move diagram right and prevent cutting
+    const scaleX = (pdfWidth - margin * 2 - leftMargin - rightMargin) / totalWidthMm;
     const scaleY = (pdfHeight - margin * 2) / curtainHeightMm;
     const scale = Math.min(scaleX, scaleY);
     
@@ -705,7 +711,7 @@ function exportToPDF() {
     const gapPx = gap * scale;
     
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    const startX = margin;
+    const startX = margin + leftMargin; // Moved right to prevent cutting
     const startY = margin + 15; // Extra space for top label
     
     // Set text direction
@@ -718,13 +724,12 @@ function exportToPDF() {
     pdf.setLineWidth(0.5);
     pdf.line(heightLineX, startY, heightLineX, startY + panelHeight);
     
-    // Height label (rotated) - display only in mm, positioned next to the line
+    // Height label (rotated) - display only in mm, positioned very close to the line
     pdf.setFontSize(9);
     pdf.setTextColor(0, 0, 0);
     const heightText = `${state.curtainHeight.toFixed(0)} mm`;
-    // Draw rotated text next to the height line (to the left of it)
-    // Position it so it's visible and close to the line
-    pdf.text(heightText, heightLineX - 3, startY + panelHeight / 2, {
+    // Draw rotated text very close to the height line (adjacent to it, not cut off)
+    pdf.text(heightText, heightLineX - 1, startY + panelHeight / 2, {
         angle: 90,
         align: 'center'
     });
@@ -794,21 +799,22 @@ function exportToPDF() {
         drawDashedLine(pdf, leftFoldX, startY, leftFoldX, startY + panelHeight);
         drawDashedLine(pdf, rightFoldX, startY, rightFoldX, startY + panelHeight);
         
-        // Fold labels - display only in mm
+        // Fold labels - display only in mm, positioned above panels with spacing
         pdf.setFontSize(8);
         const foldAlign = isRTL ? 'right' : 'center';
+        const foldLabelY = startY - 5; // Position above panels
         if (isOuter && i === 0) {
             // Left outer: label "140 mm" at left edge (currentX), label "40 mm" at right fold line
-            pdf.text(`140 mm`, currentX, startY - 2, { align: foldAlign });
-            pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`140 mm`, currentX, foldLabelY, { align: foldAlign });
+            pdf.text(`40 mm`, rightFoldX, foldLabelY, { align: foldAlign });
         } else if (isOuter && i === solution.parts - 1) {
             // Right outer: label "40 mm" at left fold line, label "140 mm" at right edge
-            pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
-            pdf.text(`140 mm`, currentX + panelWidth, startY - 2, { align: foldAlign });
+            pdf.text(`40 mm`, leftFoldX, foldLabelY, { align: foldAlign });
+            pdf.text(`140 mm`, currentX + panelWidth, foldLabelY, { align: foldAlign });
         } else {
             // Inner: labels at fold lines
-            pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
-            pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`40 mm`, leftFoldX, foldLabelY, { align: foldAlign });
+            pdf.text(`40 mm`, rightFoldX, foldLabelY, { align: foldAlign });
         }
         
         // Net width line (horizontal dashed between fold lines)
