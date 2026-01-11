@@ -675,17 +675,17 @@ function renderDiagram(solution) {
     arrow1.setAttribute('marker-end', 'url(#arrowhead)');
     svg.appendChild(arrow1);
     
-    // Arrow 2: From one of the panel connections (between panels) to image "1" below the diagram
-    // Use the connection between first and second panel
+    // Arrow 2: From inner edge of the rightmost outer panel (last panel) going upward
+    // Start from the inner edge (left side) of the last panel, at the top
     if (solution.parts > 1) {
-        const connectionX = startX + outerPanelWidth; // Between first and second panel
-        const connectionY = startY + panelHeight; // Bottom of panels
-        // Position image "1" below the diagram, below total width line
-        const image2X = connectionX; // Same X as connection
-        const image2Y = totalWidthLineY + 30; // Below total width line
+        const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
+        const connectionY = startY + 20; // Upper part of panel (20px from top)
+        // Position image "2.png" above the diagram, to the right, avoiding the title
+        const image2X = lastPanelInnerEdgeX + 50; // To the right of the inner edge
+        const image2Y = -10; // Above the diagram, below title (title is at Y = -30)
         
         const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        arrow2.setAttribute('x1', connectionX);
+        arrow2.setAttribute('x1', lastPanelInnerEdgeX);
         arrow2.setAttribute('y1', connectionY);
         arrow2.setAttribute('x2', image2X);
         arrow2.setAttribute('y2', image2Y);
@@ -694,7 +694,7 @@ function renderDiagram(solution) {
         arrow2.setAttribute('marker-end', 'url(#arrowhead)');
         svg.appendChild(arrow2);
         
-        // Add image "2.png" in circle below the diagram
+        // Add image "2.png" in circle above the diagram
         const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         image2Circle.setAttribute('cx', image2X);
         image2Circle.setAttribute('cy', image2Y);
