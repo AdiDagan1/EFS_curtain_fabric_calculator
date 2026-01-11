@@ -694,26 +694,25 @@ function renderDiagram(solution) {
         arrow2.setAttribute('marker-end', 'url(#arrowhead)');
         svg.appendChild(arrow2);
         
-        // Add image "1" label/circle below the diagram
+        // Add image "2.png" in circle below the diagram
         const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         image2Circle.setAttribute('cx', image2X);
         image2Circle.setAttribute('cy', image2Y);
-        image2Circle.setAttribute('r', '15');
+        image2Circle.setAttribute('r', '30'); // Larger circle to fit image
         image2Circle.setAttribute('fill', 'white');
         image2Circle.setAttribute('stroke', '#000');
         image2Circle.setAttribute('stroke-width', '2');
         svg.appendChild(image2Circle);
         
-        const image2Label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        image2Label.setAttribute('x', image2X);
-        image2Label.setAttribute('y', image2Y);
-        image2Label.setAttribute('text-anchor', 'middle');
-        image2Label.setAttribute('dominant-baseline', 'middle');
-        image2Label.setAttribute('font-size', '14');
-        image2Label.setAttribute('font-weight', 'bold');
-        image2Label.setAttribute('fill', '#000');
-        image2Label.textContent = '1';
-        svg.appendChild(image2Label);
+        // Add image 2.png inside the circle
+        const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        image2Img.setAttribute('href', '2.png');
+        image2Img.setAttribute('x', image2X - 25);
+        image2Img.setAttribute('y', image2Y - 25);
+        image2Img.setAttribute('width', '50');
+        image2Img.setAttribute('height', '50');
+        image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.appendChild(image2Img);
     }
     
     // Add arrowhead marker definition
@@ -733,26 +732,25 @@ function renderDiagram(solution) {
         existingDefs.appendChild(marker);
     }
     
-    // Add image "1" label/circle at the target position (for external connection)
+    // Add image "1.jpg" in circle at the target position (for external connection)
     const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     image1Circle.setAttribute('cx', image1X);
     image1Circle.setAttribute('cy', image1Y);
-    image1Circle.setAttribute('r', '15');
+    image1Circle.setAttribute('r', '30'); // Larger circle to fit image
     image1Circle.setAttribute('fill', 'white');
     image1Circle.setAttribute('stroke', '#000');
     image1Circle.setAttribute('stroke-width', '2');
     svg.appendChild(image1Circle);
     
-    const image1Label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    image1Label.setAttribute('x', image1X);
-    image1Label.setAttribute('y', image1Y);
-    image1Label.setAttribute('text-anchor', 'middle');
-    image1Label.setAttribute('dominant-baseline', 'middle');
-    image1Label.setAttribute('font-size', '14');
-    image1Label.setAttribute('font-weight', 'bold');
-    image1Label.setAttribute('fill', '#000');
-    image1Label.textContent = '1';
-    svg.appendChild(image1Label);
+    // Add image 1.jpg inside the circle
+    const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    image1Img.setAttribute('href', '1.jpg');
+    image1Img.setAttribute('x', image1X - 25);
+    image1Img.setAttribute('y', image1Y - 25);
+    image1Img.setAttribute('width', '50');
+    image1Img.setAttribute('height', '50');
+    image1Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.appendChild(image1Img);
     
     // Store SVG reference for PDF export
     state.diagramSVG = svg;
