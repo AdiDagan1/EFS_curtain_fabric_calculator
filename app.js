@@ -186,9 +186,9 @@ function findOptimalSolution() {
     const fabricWidths = [2100, 2000, 1900, 1500]; // in mm
     const inventory = state.fabricInventory;
 
-    // Fold values in mm: 180 cm = 1800 mm, 80 cm = 800 mm
-    const OUTER_FOLD_MM = 1800; // 140 cm (outer edge) + 40 cm (inner edge) = 180 cm = 1800 mm
-    const INNER_FOLD_MM = 800;  // 40 cm on each side = 80 cm = 800 mm
+    // Fold values in mm: 140mm (outer edge) + 40mm (inner edge) = 180mm
+    const OUTER_FOLD_MM = 180; // 140 mm (outer edge) + 40 mm (inner edge) = 180 mm
+    const INNER_FOLD_MM = 80;  // 40 mm on each side = 80 mm
 
     let bestSolution = null;
     let minWaste = Infinity;
@@ -229,8 +229,8 @@ function findOptimalSolution() {
             netWidth = Math.round(netWidth * 10) / 10;
             
             // Calculate cut widths (different for outer and inner panels) - all in mm
-            const outerCutWidth = netWidth + OUTER_FOLD_MM; // netWidth + 1800 mm
-            const innerCutWidth = netWidth + INNER_FOLD_MM;  // netWidth + 800 mm
+            const outerCutWidth = netWidth + OUTER_FOLD_MM; // netWidth + 180 mm
+            const innerCutWidth = netWidth + INNER_FOLD_MM;  // netWidth + 80 mm
             
             // Validate that cut widths fit within fabric width (all in mm)
             if (outerCutWidth > fabricWidth || innerCutWidth > fabricWidth) {
@@ -268,12 +268,7 @@ function findOptimalSolution() {
 function displayResults(solution) {
     const resultsDiv = document.getElementById('results');
     
-    // Convert mm to cm for display
-    const netWidthCm = solution.netWidth / 10;
-    const outerPanelWidthCm = solution.outerPanelWidth / 10;
-    const innerPanelWidthCm = solution.innerPanelWidth / 10;
-    const wasteCm = solution.waste / 10;
-    
+    // Display only in mm
     const html = `
         <div class="result-item">
             <strong>Selected Fabric Width:</strong> ${solution.fabricWidth} mm
@@ -282,18 +277,18 @@ function displayResults(solution) {
             <strong>Number of Panels:</strong> ${solution.parts}
         </div>
         <div class="result-item">
-            <strong>Net Width per Panel:</strong> ${netWidthCm.toFixed(1)} cm (${solution.netWidth.toFixed(0)} mm)
+            <strong>Net Width per Panel:</strong> ${solution.netWidth.toFixed(1)} mm
         </div>
         <div class="result-item">
-            <strong>Outer Panel Width:</strong> ${outerPanelWidthCm.toFixed(1)} cm (${solution.outerPanelWidth.toFixed(0)} mm)
-            <br><span style="margin-left: 184px; color: #666;">(Net: ${netWidthCm.toFixed(1)} cm after folding)</span>
+            <strong>Outer Panel Width:</strong> ${solution.outerPanelWidth.toFixed(1)} mm
+            <br><span style="margin-left: 184px; color: #666;">(Net: ${solution.netWidth.toFixed(1)} mm after folding)</span>
         </div>
         <div class="result-item">
-            <strong>Inner Panel Width:</strong> ${innerPanelWidthCm.toFixed(1)} cm (${solution.innerPanelWidth.toFixed(0)} mm)
-            <br><span style="margin-left: 184px; color: #666;">(Net: ${netWidthCm.toFixed(1)} cm after folding)</span>
+            <strong>Inner Panel Width:</strong> ${solution.innerPanelWidth.toFixed(1)} mm
+            <br><span style="margin-left: 184px; color: #666;">(Net: ${solution.netWidth.toFixed(1)} mm after folding)</span>
         </div>
         <div class="result-item">
-            <strong>Total Fabric Waste:</strong> ${wasteCm.toFixed(1)} cm (${solution.waste.toFixed(0)} mm)
+            <strong>Total Fabric Waste:</strong> ${solution.waste.toFixed(1)} mm
         </div>
     `;
     
@@ -309,34 +304,28 @@ function renderDiagram(solution) {
     const t = translations[lang] || translations.en;
     const isRTL = lang === 'he' || lang === 'ar';
     
-    // Calculate dimensions for landscape A4 (297mm x 210mm = 1122px x 794px at 96 DPI)
-    // Use a scale that fits the entire curtain width in landscape
-    const maxWidth = 1000; // Maximum width for on-screen display
-    const maxHeight = 600; // Maximum height for on-screen display
-    const pdfWidth = 1122; // A4 landscape width in pixels
-    const pdfHeight = 794; // A4 landscape height in pixels
+    // Get container dimensions to use full available space
+    const containerRect = container.getBoundingClientRect();
+    const maxWidth = containerRect.width - 40; // Leave small margin
+    const maxHeight = containerRect.height - 40; // Leave small margin
     
-    // All values are in mm, convert to cm for calculations
+    // All values are in mm
     const totalCurtainWidthMm = 2 * solution.outerPanelWidth + (solution.parts - 2) * solution.innerPanelWidth;
-    const gap = 200; // Gap between panels in mm (20 cm)
+    const gap = 20; // Gap between panels in mm
     const totalWidthMm = totalCurtainWidthMm + (solution.parts - 1) * gap;
     const curtainHeightMm = state.curtainHeight;
     
-    // Convert to cm for scaling
-    const totalWidthCmForScale = totalWidthMm / 10;
-    const curtainHeightCm = curtainHeightMm / 10;
+    // Scale to fit container (use full available space)
+    const margin = 120; // Margins for labels
+    const scaleX = (maxWidth - margin * 2) / totalWidthMm;
+    const scaleY = (maxHeight - margin * 2) / curtainHeightMm;
+    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit everything
     
-    // Scale to fit on screen (with margins)
-    const margin = 100; // Margins for labels
-    const scaleX = (maxWidth - margin * 2) / totalWidthCmForScale;
-    const scaleY = (maxHeight - margin * 2) / curtainHeightCm;
-    const scale = Math.min(scaleX, scaleY, 0.5); // Limit scale for readability
-    
-    // Calculate dimensions (convert mm to cm then scale)
-    const panelHeight = curtainHeightCm * scale;
-    const outerPanelWidth = (solution.outerPanelWidth / 10) * scale;
-    const innerPanelWidth = (solution.innerPanelWidth / 10) * scale;
-    const gapPx = (gap / 10) * scale;
+    // Calculate dimensions in pixels (all in mm, scale directly)
+    const panelHeight = curtainHeightMm * scale;
+    const outerPanelWidth = solution.outerPanelWidth * scale;
+    const innerPanelWidth = solution.innerPanelWidth * scale;
+    const gapPx = gap * scale;
     
     // Calculate total diagram dimensions
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
@@ -396,9 +385,8 @@ function renderDiagram(solution) {
     heightLabel.setAttribute('font-size', '12');
     heightLabel.setAttribute('font-weight', '600');
     heightLabel.setAttribute('fill', '#000');
-    // Convert mm to cm for display
-    const heightCm = state.curtainHeight / 10;
-    heightLabel.textContent = `${heightCm.toFixed(0)} ${t.cm} (${state.curtainHeight} mm)`;
+    // Display only in mm
+    heightLabel.textContent = `${state.curtainHeight.toFixed(0)} mm`;
     svg.appendChild(heightLabel);
     
     // Draw total width line (above panels)
@@ -412,7 +400,7 @@ function renderDiagram(solution) {
     totalWidthLine.setAttribute('stroke-width', '2');
     svg.appendChild(totalWidthLine);
     
-    // Total width label (centered) - convert mm to cm for display
+    // Total width label (centered) - display only in mm
     const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
     totalWidthLabel.setAttribute('y', totalWidthLineY - 10);
@@ -423,8 +411,7 @@ function renderDiagram(solution) {
     if (isRTL) {
         totalWidthLabel.setAttribute('direction', 'rtl');
     }
-    const totalWidthCmForDisplay = state.curtainWidth / 10;
-    totalWidthLabel.textContent = `${t.totalWidth}: ${totalWidthCmForDisplay.toFixed(0)} ${t.cm} (${state.curtainWidth} mm)`;
+    totalWidthLabel.textContent = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
     svg.appendChild(totalWidthLabel);
     
     // Draw panels
@@ -445,29 +432,49 @@ function renderDiagram(solution) {
         panelRect.setAttribute('stroke-width', '2');
         svg.appendChild(panelRect);
         
-        // Fold lines (dashed vertical lines)
-        // Outer panels: 1400mm (outer edge) + 400mm (inner edge) = 1800mm total
-        // Inner panels: 400mm on each side = 800mm total
-        // Convert mm to cm for scaling: 1400mm = 140cm, 400mm = 40cm
-        const OUTER_FOLD_CM = 140; // 1400mm = 140cm
-        const INNER_FOLD_CM = 40;  // 400mm = 40cm
+        // Fold lines (dashed vertical lines) - values in mm
+        // Outer panels: 140mm (outer edge) + 40mm (inner edge) = 180mm total
+        // Inner panels: 40mm on each side = 80mm total
+        const OUTER_FOLD_MM = 140; // 140mm (outer edge)
+        const INNER_FOLD_MM = 40;  // 40mm (inner edge or both sides for inner panels)
         let leftFoldX, rightFoldX;
         
         if (isOuter) {
             if (i === 0) {
-                // Left outer panel: 140cm fold on left (outer edge), 40cm fold on right (inner edge)
+                // Left outer panel: 140mm fold on left (outer edge), 40mm fold on right (inner edge)
                 leftFoldX = currentX; // Left edge of panel
-                rightFoldX = currentX + panelWidth - INNER_FOLD_CM * scale; // 40cm from right edge
+                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
             } else {
-                // Right outer panel: 40cm fold on left (inner edge), 140cm fold on right (outer edge)
-                leftFoldX = currentX; // Left edge of panel (40cm fold)
-                rightFoldX = currentX + panelWidth - OUTER_FOLD_CM * scale; // 140cm from right edge
+                // Right outer panel: 40mm fold on left (inner edge), 140mm fold on right (outer edge)
+                leftFoldX = currentX; // Left edge of panel (40mm fold)
+                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale; // 140mm from right edge
             }
         } else {
-            // Inner panel: 40cm on each side
+            // Inner panel: 40mm on each side
             leftFoldX = currentX; // Left edge
-            rightFoldX = currentX + panelWidth - INNER_FOLD_CM * scale; // 40cm from right edge
+            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale; // 40mm from right edge
         }
+        
+        // Add dashed lines along the length of the panel (left and right edges)
+        const leftEdgeLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        leftEdgeLine.setAttribute('x1', currentX);
+        leftEdgeLine.setAttribute('y1', startY);
+        leftEdgeLine.setAttribute('x2', currentX);
+        leftEdgeLine.setAttribute('y2', startY + panelHeight);
+        leftEdgeLine.setAttribute('stroke', '#666');
+        leftEdgeLine.setAttribute('stroke-width', '1.5');
+        leftEdgeLine.setAttribute('stroke-dasharray', '4,4');
+        svg.appendChild(leftEdgeLine);
+        
+        const rightEdgeLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        rightEdgeLine.setAttribute('x1', currentX + panelWidth);
+        rightEdgeLine.setAttribute('y1', startY);
+        rightEdgeLine.setAttribute('x2', currentX + panelWidth);
+        rightEdgeLine.setAttribute('y2', startY + panelHeight);
+        rightEdgeLine.setAttribute('stroke', '#666');
+        rightEdgeLine.setAttribute('stroke-width', '1.5');
+        rightEdgeLine.setAttribute('stroke-dasharray', '4,4');
+        svg.appendChild(rightEdgeLine);
         
         // Draw left fold line
         const leftFoldLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -492,11 +499,11 @@ function renderDiagram(solution) {
             leftFoldLabel.setAttribute('direction', 'rtl');
         }
         if (isOuter && i === 0) {
-            leftFoldLabel.textContent = `140 ${t.cm}`;
+            leftFoldLabel.textContent = `140 mm`;
         } else if (isOuter && i === solution.parts - 1) {
-            leftFoldLabel.textContent = `40 ${t.cm}`;
+            leftFoldLabel.textContent = `40 mm`;
         } else {
-            leftFoldLabel.textContent = `40 ${t.cm}`;
+            leftFoldLabel.textContent = `40 mm`;
         }
         svg.appendChild(leftFoldLabel);
         
@@ -523,31 +530,31 @@ function renderDiagram(solution) {
             rightFoldLabel.setAttribute('direction', 'rtl');
         }
         if (isOuter && i === 0) {
-            rightFoldLabel.textContent = `40 ${t.cm}`;
+            rightFoldLabel.textContent = `40 mm`;
         } else if (isOuter && i === solution.parts - 1) {
-            rightFoldLabel.textContent = `140 ${t.cm}`;
+            rightFoldLabel.textContent = `140 mm`;
         } else {
-            rightFoldLabel.textContent = `40 ${t.cm}`;
+            rightFoldLabel.textContent = `40 mm`;
         }
         svg.appendChild(rightFoldLabel);
         
         // Net width line (horizontal dashed line strictly between the two fold lines)
         // The net width is the area between the folded edges
-        // For outer panels: net width starts after 140cm (left) or 40cm (right), ends before 40cm (left) or 140cm (right)
-        // For inner panels: net width starts after 40cm, ends before 40cm
+        // For outer panels: net width starts after 140mm (left) or 40mm (right), ends before 40mm (left) or 140mm (right)
+        // For inner panels: net width starts after 40mm, ends before 40mm
         let netWidthStartX, netWidthEndX;
         if (isOuter && i === 0) {
-            // Left outer: after 140cm fold, before 40cm fold
-            netWidthStartX = currentX + OUTER_FOLD_CM * scale;
-            netWidthEndX = currentX + panelWidth - INNER_FOLD_CM * scale;
+            // Left outer: after 140mm fold, before 40mm fold
+            netWidthStartX = currentX + OUTER_FOLD_MM * scale;
+            netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
         } else if (isOuter && i === solution.parts - 1) {
-            // Right outer: after 40cm fold, before 140cm fold
-            netWidthStartX = currentX + INNER_FOLD_CM * scale;
-            netWidthEndX = currentX + panelWidth - OUTER_FOLD_CM * scale;
+            // Right outer: after 40mm fold, before 140mm fold
+            netWidthStartX = currentX + INNER_FOLD_MM * scale;
+            netWidthEndX = currentX + panelWidth - OUTER_FOLD_MM * scale;
         } else {
-            // Inner: after 40cm fold, before 40cm fold
-            netWidthStartX = currentX + INNER_FOLD_CM * scale;
-            netWidthEndX = currentX + panelWidth - INNER_FOLD_CM * scale;
+            // Inner: after 40mm fold, before 40mm fold
+            netWidthStartX = currentX + INNER_FOLD_MM * scale;
+            netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
         }
         const netWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         netWidthLine.setAttribute('x1', netWidthStartX);
@@ -570,12 +577,11 @@ function renderDiagram(solution) {
         if (isRTL) {
             netWidthLabel.setAttribute('direction', 'rtl');
         }
-        // Convert mm to cm for display
-        const netWidthCm = solution.netWidth / 10;
-        netWidthLabel.textContent = `${netWidthCm.toFixed(1)} ${t.cm} (${solution.netWidth.toFixed(0)} mm)`;
+        // Display only in mm
+        netWidthLabel.textContent = `${solution.netWidth.toFixed(1)} mm`;
         svg.appendChild(netWidthLabel);
         
-        // Panel width label (below panel, centered) - convert mm to cm for display
+        // Panel width label (below panel, centered) - display only in mm
         const panelWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         panelWidthLabel.setAttribute('x', currentX + panelWidth / 2);
         panelWidthLabel.setAttribute('y', startY + panelHeight + 25);
@@ -586,8 +592,7 @@ function renderDiagram(solution) {
         if (isRTL) {
             panelWidthLabel.setAttribute('direction', 'rtl');
         }
-        const totalWidthCm = totalWidth / 10;
-        panelWidthLabel.textContent = `${t.panelWidth}: ${totalWidthCm.toFixed(1)} ${t.cm} (${totalWidth.toFixed(0)} mm)`;
+        panelWidthLabel.textContent = `${t.panelWidth}: ${totalWidth.toFixed(1)} mm`;
         svg.appendChild(panelWidthLabel);
         
         // Move to next panel
@@ -625,7 +630,7 @@ function exportToPDF() {
     
     // All values are in mm
     const totalCurtainWidthMm = 2 * solution.outerPanelWidth + (solution.parts - 2) * solution.innerPanelWidth;
-    const gap = 200; // Gap between panels in mm (20 cm)
+    const gap = 20; // Gap between panels in mm
     const totalWidthMm = totalCurtainWidthMm + (solution.parts - 1) * gap;
     const curtainHeightMm = state.curtainHeight;
     
@@ -655,11 +660,10 @@ function exportToPDF() {
     pdf.setLineWidth(0.5);
     pdf.line(heightLineX, startY, heightLineX, startY + panelHeight);
     
-    // Height label (rotated) - convert mm to cm for display
+    // Height label (rotated) - display only in mm
     pdf.setFontSize(10);
     pdf.setTextColor(0, 0, 0);
-    const heightCm = state.curtainHeight / 10;
-    pdf.text(`${heightCm.toFixed(0)} ${t.cm} (${state.curtainHeight} mm)`, heightLineX - 5, startY + panelHeight / 2, {
+    pdf.text(`${state.curtainHeight.toFixed(0)} mm`, heightLineX - 5, startY + panelHeight / 2, {
         angle: 90,
         align: 'center'
     });
@@ -668,11 +672,10 @@ function exportToPDF() {
     pdf.setLineWidth(0.5);
     pdf.line(startX, startY - 10, startX + totalWidthPx, startY - 10);
     
-    // Total width label (centered for LTR, right-aligned for RTL) - convert mm to cm for display
+    // Total width label (centered for LTR, right-aligned for RTL) - display only in mm
     pdf.setFontSize(12);
     pdf.setFont(undefined, 'bold');
-    const totalWidthCm = state.curtainWidth / 10;
-    pdf.text(`${t.totalWidth}: ${totalWidthCm.toFixed(0)} ${t.cm} (${state.curtainWidth} mm)`, startX + totalWidthPx / 2, startY - 15, {
+    pdf.text(`${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`, startX + totalWidthPx / 2, startY - 15, {
         align: isRTL ? 'right' : 'center'
     });
     
@@ -693,67 +696,69 @@ function exportToPDF() {
         pdf.setDrawColor(100, 100, 100);
         pdf.setLineWidth(0.3);
         
-        // Fold values in mm: 1400mm = 140cm, 400mm = 40cm
-        const OUTER_FOLD_MM = 1400; // 140 cm
-        const INNER_FOLD_MM = 400;  // 40 cm
+        // Fold values in mm: 140mm and 40mm
+        const OUTER_FOLD_MM = 140; // 140 mm
+        const INNER_FOLD_MM = 40;  // 40 mm
         let leftFoldX, rightFoldX, netWidthStartX, netWidthEndX;
         
         if (isOuter) {
             if (i === 0) {
-                // Left outer: 140cm fold on left, 40cm fold on right
+                // Left outer: 140mm fold on left, 40mm fold on right
                 leftFoldX = currentX;
                 rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale;
                 netWidthStartX = currentX + OUTER_FOLD_MM * scale;
                 netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
             } else {
-                // Right outer: 40cm fold on left, 140cm fold on right
+                // Right outer: 40mm fold on left, 140mm fold on right
                 leftFoldX = currentX;
                 rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * scale;
                 netWidthStartX = currentX + INNER_FOLD_MM * scale;
                 netWidthEndX = currentX + panelWidth - OUTER_FOLD_MM * scale;
             }
         } else {
-            // Inner panel: 40cm on each side
+            // Inner panel: 40mm on each side
             leftFoldX = currentX;
             rightFoldX = currentX + panelWidth - INNER_FOLD_MM * scale;
             netWidthStartX = currentX + INNER_FOLD_MM * scale;
             netWidthEndX = currentX + panelWidth - INNER_FOLD_MM * scale;
         }
         
+        // Draw dashed lines along the length of the panel (left and right edges)
+        drawDashedLine(pdf, currentX, startY, currentX, startY + panelHeight);
+        drawDashedLine(pdf, currentX + panelWidth, startY, currentX + panelWidth, startY + panelHeight);
+        
         // Draw fold lines
         drawDashedLine(pdf, leftFoldX, startY, leftFoldX, startY + panelHeight);
         drawDashedLine(pdf, rightFoldX, startY, rightFoldX, startY + panelHeight);
         
-        // Fold labels
+        // Fold labels - display only in mm
         pdf.setFontSize(8);
         const foldAlign = isRTL ? 'right' : 'center';
         if (isOuter && i === 0) {
-            pdf.text(`140 ${t.cm}`, leftFoldX, startY - 2, { align: foldAlign });
-            pdf.text(`40 ${t.cm}`, rightFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`140 mm`, leftFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
         } else if (isOuter && i === solution.parts - 1) {
-            pdf.text(`40 ${t.cm}`, leftFoldX, startY - 2, { align: foldAlign });
-            pdf.text(`140 ${t.cm}`, rightFoldX, startY - 2, { align: foldAlign });
-    } else {
-            pdf.text(`40 ${t.cm}`, leftFoldX, startY - 2, { align: foldAlign });
-            pdf.text(`40 ${t.cm}`, rightFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`140 mm`, rightFoldX, startY - 2, { align: foldAlign });
+        } else {
+            pdf.text(`40 mm`, leftFoldX, startY - 2, { align: foldAlign });
+            pdf.text(`40 mm`, rightFoldX, startY - 2, { align: foldAlign });
         }
         
         // Net width line (horizontal dashed between fold lines)
         drawDashedLine(pdf, netWidthStartX, startY + panelHeight / 2, netWidthEndX, startY + panelHeight / 2);
         
-        // Net width label - convert mm to cm for display
+        // Net width label - display only in mm
         pdf.setFontSize(8);
-        const netWidthCm = solution.netWidth / 10;
-        pdf.text(`${netWidthCm.toFixed(1)} ${t.cm}`, (netWidthStartX + netWidthEndX) / 2, startY + panelHeight / 2 - 3, {
+        pdf.text(`${solution.netWidth.toFixed(1)} mm`, (netWidthStartX + netWidthEndX) / 2, startY + panelHeight / 2 - 3, {
             align: isRTL ? 'right' : 'center'
         });
         
-        // Panel width label (below) - convert mm to cm for display
+        // Panel width label (below) - display only in mm
         pdf.setFontSize(10);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
-        const totalWidthCm = totalWidth / 10;
-        pdf.text(`${t.panelWidth}: ${totalWidthCm.toFixed(1)} ${t.cm}`, currentX + panelWidth / 2, startY + panelHeight + 8, {
+        pdf.text(`${t.panelWidth}: ${totalWidth.toFixed(1)} mm`, currentX + panelWidth / 2, startY + panelHeight + 8, {
             align: isRTL ? 'right' : 'center'
         });
         
