@@ -349,9 +349,9 @@ function renderDiagram(solution) {
     const pdfWidthPx = pdfWidthMm * 3.78; // Convert to pixels
     const pdfHeightPx = pdfHeightMm * 3.78; // Convert to pixels
     
-    // Fixed diagram dimensions: 70% of PDF page (constant)
-    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx * 0.7); // 70% of PDF height - CONSTANT
-    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx * 0.7); // 70% of PDF width - CONSTANT
+    // Fixed diagram dimensions: 70% * 1.3 = 91% of PDF page (constant)
+    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx * 0.7 * 1.3); // 70% * 1.3 = 91% of PDF height - CONSTANT
+    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx * 0.7 * 1.3); // 70% * 1.3 = 91% of PDF width - CONSTANT
     
     // Fixed gap between panels
     const gapPixels = 40; // Fixed gap between panels in pixels
@@ -672,7 +672,11 @@ function renderDiagram(solution) {
     const addImageCircle = (x, y, imagePath, circleId) => {
         // Circle radius reduced by 20%: 40 * 0.8 = 32
         const circleRadius = 32;
-        const imageSize = 54; // 67.5 * 0.8 = 54
+        // Increase image size by 20% but don't exceed circle bounds (zoom in effect)
+        // Max image size should be circleRadius * 2, but we'll use circleRadius * 1.8 to leave some margin
+        const maxImageSize = circleRadius * 1.8;
+        const baseImageSize = 54; // 67.5 * 0.8 = 54
+        const imageSize = Math.min(baseImageSize * 1.2, maxImageSize); // Increase by 20% but cap at max
         
         // Add circle
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -721,34 +725,73 @@ function renderDiagram(solution) {
     // Add detail view images on all bottom corners
     const bottomY = startY + panelHeight; // Bottom of all panels
     
-    // Loop through all panels and add circles on bottom corners
+    // Circle radius and spacing
+    const circleRadius = 32;
+    const cornerOffset = 8; // Fixed offset from corner to prevent overlap (in pixels)
+    
+    // Track shared corners to offset circles
+    const sharedCorners = new Set(); // Track corners that are shared between panels
+    
+    // Mark shared corners (corners between panels)
     let panelX = startX;
+    for (let i = 0; i < solution.parts - 1; i++) {
+        const isOuter = i === 0 || i === solution.parts - 1;
+        const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
+        const rightCornerX = panelX + panelWidth;
+        sharedCorners.add(`${Math.round(rightCornerX)}_${Math.round(bottomY)}`);
+        panelX += panelWidth + gapPx;
+    }
+    
+    // Loop through all panels and add circles on bottom corners with spacing
+    panelX = startX;
     for (let i = 0; i < solution.parts; i++) {
         const isOuter = i === 0 || i === solution.parts - 1;
         const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
         
+        // Calculate corner positions with offset
+        const leftCornerX = panelX;
+        const rightCornerX = panelX + panelWidth;
+        const leftKey = `${Math.round(leftCornerX)}_${Math.round(bottomY)}`;
+        const rightKey = `${Math.round(rightCornerX)}_${Math.round(bottomY)}`;
+        
         if (isOuter) {
             // Outer panels: add image 1 on outer corner
             if (i === 0) {
-                // Left outer panel: left bottom corner (outer corner)
-                addImageCircle(panelX, bottomY, '1.jpg', '1');
+                // Left outer panel: left bottom corner (outer corner) - offset inward
+                const leftX = leftCornerX + cornerOffset;
+                addImageCircle(leftX, bottomY, '1.jpg', `1_${i}_left`);
+                
                 // If only one panel, also add image 1 on right corner
                 if (solution.parts === 1) {
-                    addImageCircle(panelX + panelWidth, bottomY, '1.jpg', '1');
+                    const rightX = rightCornerX - cornerOffset;
+                    addImageCircle(rightX, bottomY, '1.jpg', `1_${i}_right`);
                 } else {
                     // Left outer panel: right bottom corner (inner corner)
-                    addImageCircle(panelX + panelWidth, bottomY, '2.png', '2');
+                    // If shared corner, offset more to prevent overlap
+                    const offset = sharedCorners.has(rightKey) ? cornerOffset * 1.5 : cornerOffset;
+                    const rightX = rightCornerX - offset;
+                    addImageCircle(rightX, bottomY, '2.png', `2_${i}_right`);
                 }
             } else {
-                // Right outer panel: right bottom corner (outer corner)
-                addImageCircle(panelX + panelWidth, bottomY, '1.jpg', '1');
+                // Right outer panel: right bottom corner (outer corner) - offset inward
+                const rightX = rightCornerX - cornerOffset;
+                addImageCircle(rightX, bottomY, '1.jpg', `1_${i}_right`);
                 // Right outer panel: left bottom corner (inner corner)
-                addImageCircle(panelX, bottomY, '2.png', '2');
+                // If shared corner, offset more to prevent overlap
+                const offset = sharedCorners.has(leftKey) ? cornerOffset * 1.5 : cornerOffset;
+                const leftX = leftCornerX + offset;
+                addImageCircle(leftX, bottomY, '2.png', `2_${i}_left`);
             }
         } else {
             // Inner panels: add image 2 on both bottom corners
-            addImageCircle(panelX, bottomY, '2.png', '2'); // Left corner
-            addImageCircle(panelX + panelWidth, bottomY, '2.png', '2'); // Right corner
+            // Left corner - if shared, offset more
+            const leftOffset = sharedCorners.has(leftKey) ? cornerOffset * 1.5 : cornerOffset;
+            const leftX = leftCornerX + leftOffset;
+            addImageCircle(leftX, bottomY, '2.png', `2_${i}_left`);
+            // Right corner - if shared, offset more
+            const rightOffset = sharedCorners.has(rightKey) ? cornerOffset * 1.5 : cornerOffset;
+            const rightX = rightCornerX - rightOffset;
+            addImageCircle(rightX, bottomY, '2.png', `2_${i}_right`);
         }
         
         // Move to next panel
@@ -955,21 +998,21 @@ async function exportToPDF() {
         const rollInfoY = y + 10 + offsetY; // Start 10mm from top, moved 30px down
         const rollInfoLineHeight = 7; // Line height in mm
         
-        // Fixed box dimensions
-        const boxWidth = 50; // Fixed width in mm
-        const boxHeight = rollInfoLineHeight * 8 + 4; // Approximate height with padding
+        // Fixed box dimensions - smaller to fit only rolls count and fabric width
+        const boxWidth = 45; // Fixed width in mm
+        const boxHeight = rollInfoLineHeight * 4 + 4; // Approximate height with padding (only 2 items + title)
         
         // Draw border (rectangle)
         pdf.setDrawColor(0, 0, 0); // Black border
         pdf.setLineWidth(0.5); // 0.5mm line width
         pdf.rect(rollInfoX - 2, rollInfoY - rollInfoLineHeight - 2, boxWidth, boxHeight);
         
-        // Set font for roll information
-        pdf.setFontSize(12);
+        // Set font for roll information - smaller title to fit in box
+        pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
         
-        // Title
-        pdf.text('Roll Information / מידע גלילים', rollInfoX, rollInfoY);
+        // Title - smaller font
+        pdf.text('Roll Info / מידע גלילים', rollInfoX, rollInfoY);
         
         // Roll details
         pdf.setFont('helvetica', 'normal');
@@ -978,34 +1021,18 @@ async function exportToPDF() {
         
         // Number of rolls needed
         pdf.setFont('helvetica', 'bold');
-        pdf.text('Rolls Needed:', rollInfoX, currentY);
+        pdf.text('Rolls:', rollInfoX, currentY);
         pdf.setFont('helvetica', 'normal');
         currentY += rollInfoLineHeight;
-        pdf.text(`${solution.rollsNeeded} rolls`, rollInfoX, currentY);
+        pdf.text(`${solution.rollsNeeded}`, rollInfoX, currentY);
         currentY += rollInfoLineHeight * 1.5;
         
         // Fabric width
         pdf.setFont('helvetica', 'bold');
-        pdf.text('Fabric Width:', rollInfoX, currentY);
+        pdf.text('Width:', rollInfoX, currentY);
         pdf.setFont('helvetica', 'normal');
         currentY += rollInfoLineHeight;
         pdf.text(`${solution.fabricWidth} mm`, rollInfoX, currentY);
-        currentY += rollInfoLineHeight * 1.5;
-        
-        // Panels per roll
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Panels per Roll:', rollInfoX, currentY);
-        pdf.setFont('helvetica', 'normal');
-        currentY += rollInfoLineHeight;
-        pdf.text(`${solution.panelsPerRoll} panels`, rollInfoX, currentY);
-        currentY += rollInfoLineHeight * 1.5;
-        
-        // Total panels
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Total Panels:', rollInfoX, currentY);
-        pdf.setFont('helvetica', 'normal');
-        currentY += rollInfoLineHeight;
-        pdf.text(`${solution.parts} panels`, rollInfoX, currentY);
         
         // Generate PDF filename with curtain name
         const filenameCurtainName = state.curtainName.trim() || 'Curtain';
