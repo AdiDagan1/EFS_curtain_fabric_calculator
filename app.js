@@ -695,9 +695,9 @@ function renderDiagram(solution) {
     if (solution.parts > 1) {
         const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
         const connectionY = startY; // Top corner of panel (inner edge, top)
-        // Calculate arrow length and extend it by 40% + additional 50% = 110% total (1.4 * 1.5 = 2.1)
+        // Calculate arrow length and extend it by 40% + additional 50% + another 50% = 315% total (1.4 * 1.5 * 1.5 = 3.15)
         const baseArrowLength = 100; // Base length
-        const extendedArrowLength = baseArrowLength * 1.4 * 1.5; // Extend by 40% then additional 50% = 210px total
+        const extendedArrowLength = baseArrowLength * 1.4 * 1.5 * 1.5; // Extend by 40% then additional 50% then another 50% = 315px total
         // Position image "2.png" above the diagram, further to the right, avoiding the title
         const image2X = lastPanelInnerEdgeX + extendedArrowLength; // Extended distance from inner edge
         const image2Y = -15; // Above the diagram, below title (title is at Y = -30), with more spacing
