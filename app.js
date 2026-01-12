@@ -383,9 +383,9 @@ function renderDiagram(solution) {
     // Calculate space needed for labels below panels
     // Panel width labels are positioned at startY + panelHeight + 25
     // Text height for font-size 12 is approximately 15px
-    // Add extra space for total width line and detail view image below
+    // Add extra space for total width line (now lowered by 20px), label, and detail view images below
     const spaceForLabels = 25 + 15; // Position offset + text height = 40px
-    const spaceBelowTotalWidth = 50; // Space for total width line, label, and detail view image
+    const spaceBelowTotalWidth = 70; // Space for total width line (lowered by 20px), label, and circles below curtain
     
     // Calculate the actual bottom of all content dynamically
     const contentBottomY = startY + panelHeight + spaceForLabels + spaceBelowTotalWidth;
@@ -646,7 +646,7 @@ function renderDiagram(solution) {
     // Draw total width line below the diagram (after panel width labels)
     // Panel width labels are at: startY + panelHeight + 25
     const panelWidthLabelY = startY + panelHeight + 25; // Y position of panel width labels
-    const totalWidthLineY = panelWidthLabelY + 20; // Below panel width labels (20px spacing)
+    const totalWidthLineY = panelWidthLabelY + 40; // Lowered by 20px (was 20, now 40)
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
@@ -668,18 +668,42 @@ function renderDiagram(solution) {
     totalWidthLabel.textContent = labelText;
     svg.appendChild(totalWidthLabel);
     
+    // Add arrowhead marker definition (needed before arrows)
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '10');
+    marker.setAttribute('markerHeight', '10');
+    marker.setAttribute('refX', '9');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '0 0, 10 3, 0 6');
+    polygon.setAttribute('fill', '#000');
+    marker.appendChild(polygon);
+    const existingDefs = svg.querySelector('defs');
+    if (existingDefs) {
+        existingDefs.appendChild(marker);
+    }
+    
     // Add detail view arrows and image reference (like technical drawing)
-    // Arrow 1: From right corner of the curtain (last panel) to image "1" - further from diagram
-    // Extend arrow by 40%
+    // Position circles between the total width line and the curtain (below the curtain)
     const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
     const lastPanelY = startY + panelHeight; // Bottom of last panel
-    // Position image "1" further from the panel to avoid overlapping with diagram
-    const baseArrow1Distance = 80; // Base distance
-    const extendedArrow1Distance = baseArrow1Distance * 1.4; // Extend by 40%
-    const image1X = lastPanelX + extendedArrow1Distance; // Extended distance from panel edge
-    const image1Y = lastPanelY - 20; // Further from bottom
+    const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel
     
-    // Draw arrow from right corner of last panel to image "1"
+    // Calculate position for circles: between total width line and curtain bottom
+    // Place them in the middle of that space
+    const spaceBetweenLineAndCurtain = totalWidthLineY - lastPanelY;
+    const circleY = lastPanelY + spaceBetweenLineAndCurtain / 2; // Middle position between line and curtain
+    
+    // Arrow 1: From right corner of the curtain (last panel) to image "1"
+    // The bottom circle stays connected to the same corner (right bottom of last panel) but positioned below the first part
+    const firstPanelX = startX; // Left edge of first panel
+    const firstPanelY = startY + panelHeight; // Bottom of first panel
+    const image1X = firstPanelX - 60; // Position to the left of first panel (below first part)
+    const image1Y = circleY; // Position between line and curtain
+    
+    // Draw arrow from right corner of last panel to image "1" (circle is positioned below first part)
     const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     arrow1.setAttribute('x1', lastPanelX);
     arrow1.setAttribute('y1', lastPanelY);
@@ -690,21 +714,20 @@ function renderDiagram(solution) {
     arrow1.setAttribute('marker-end', 'url(#arrowhead)');
     svg.appendChild(arrow1);
     
-    // Arrow 2: From inner edge (top-left corner) of the rightmost outer panel (last panel) going upward
-    // Start from the inner edge (left side) of the last panel, at the top corner
+    // Arrow 2: From bottom-left corner of the rightmost outer panel (last panel)
+    // The top circle moves to the bottom-left corner of the right outer part
     if (solution.parts > 1) {
-        const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
-        const connectionY = startY; // Top corner of panel (inner edge, top)
-        // Calculate arrow length and extend it by 40% + additional 50% + another 50% = 315% total (1.4 * 1.5 * 1.5 = 3.15)
-        const baseArrowLength = 100; // Base length
-        const extendedArrowLength = baseArrowLength * 1.4 * 1.5 * 1.5; // Extend by 40% then additional 50% then another 50% = 315px total
-        // Position image "2.png" above the diagram, further to the right, avoiding the title
-        const image2X = lastPanelInnerEdgeX + extendedArrowLength; // Extended distance from inner edge
-        const image2Y = -15; // Above the diagram, below title (title is at Y = -30), with more spacing
+        const connectionX = lastPanelInnerEdgeX; // Left edge of last panel (bottom-left corner)
+        const connectionY = lastPanelY; // Bottom corner of panel
         
+        // Position image "2.png" near the bottom-left corner of last panel, circle positioned between line and curtain
+        const image2X = connectionX - 60; // Position to the left of connection point (shorter line)
+        const image2Y = circleY; // Position between line and curtain
+        
+        // Draw arrow from bottom-left corner of last panel to image "2" (shorter line)
         const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        arrow2.setAttribute('x1', lastPanelInnerEdgeX);
-        arrow2.setAttribute('y1', connectionY); // Top corner
+        arrow2.setAttribute('x1', connectionX);
+        arrow2.setAttribute('y1', connectionY); // Bottom-left corner
         arrow2.setAttribute('x2', image2X);
         arrow2.setAttribute('y2', image2Y);
         arrow2.setAttribute('stroke', '#000');
@@ -712,8 +735,7 @@ function renderDiagram(solution) {
         arrow2.setAttribute('marker-end', 'url(#arrowhead)');
         svg.appendChild(arrow2);
         
-        // Add image "2.png" in circle above the diagram
-        // Increase circle and image size by 50%
+        // Add image "2.png" in circle below the curtain
         const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         image2Circle.setAttribute('cx', image2X);
         image2Circle.setAttribute('cy', image2Y);
@@ -724,8 +746,6 @@ function renderDiagram(solution) {
         svg.appendChild(image2Circle);
         
         // Add image 2.png inside the circle - convert to base64 for PDF compatibility
-        // Increase image size by 50% + additional 30% = 97.5px (75 * 1.3 = 97.5)
-        // Image will be clipped to circle boundaries using clipPath
         const image2Size = 75 * 1.3; // 97.5px
         const image2Radius = 45; // Circle radius
         
@@ -765,25 +785,7 @@ function renderDiagram(solution) {
         svg.appendChild(image2Img);
     }
     
-    // Add arrowhead marker definition
-    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-    marker.setAttribute('id', 'arrowhead');
-    marker.setAttribute('markerWidth', '10');
-    marker.setAttribute('markerHeight', '10');
-    marker.setAttribute('refX', '9');
-    marker.setAttribute('refY', '3');
-    marker.setAttribute('orient', 'auto');
-    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    polygon.setAttribute('points', '0 0, 10 3, 0 6');
-    polygon.setAttribute('fill', '#000');
-    marker.appendChild(polygon);
-    const existingDefs = svg.querySelector('defs');
-    if (existingDefs) {
-        existingDefs.appendChild(marker);
-    }
-    
-    // Add image "1.jpg" in circle at the target position (for external connection)
-    // Increase circle and image size by 50%
+    // Add image "1.jpg" in circle below the curtain
     const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     image1Circle.setAttribute('cx', image1X);
     image1Circle.setAttribute('cy', image1Y);
@@ -794,8 +796,6 @@ function renderDiagram(solution) {
     svg.appendChild(image1Circle);
     
     // Add image 1.jpg inside the circle - convert to base64 for PDF compatibility
-    // Increase image size by 50%
-    // Image will be clipped to circle boundaries using clipPath
     const image1Radius = 45; // Circle radius
     
     // Create clip path for image 1
