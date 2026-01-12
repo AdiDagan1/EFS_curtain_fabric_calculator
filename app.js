@@ -383,9 +383,9 @@ function renderDiagram(solution) {
     // Calculate space needed for labels below panels
     // Panel width labels are positioned at startY + panelHeight + 25
     // Text height for font-size 12 is approximately 15px
-    // Add extra space for total width line (now lowered by 20px), label, and detail view images below
+    // Add extra space for total width line (now lowered by 50px total), label, and circles on corners
     const spaceForLabels = 25 + 15; // Position offset + text height = 40px
-    const spaceBelowTotalWidth = 70; // Space for total width line (lowered by 20px), label, and circles below curtain
+    const spaceBelowTotalWidth = 100; // Space for total width line (lowered by 50px), label, and circles on corners
     
     // Calculate the actual bottom of all content dynamically
     const contentBottomY = startY + panelHeight + spaceForLabels + spaceBelowTotalWidth;
@@ -646,7 +646,7 @@ function renderDiagram(solution) {
     // Draw total width line below the diagram (after panel width labels)
     // Panel width labels are at: startY + panelHeight + 25
     const panelWidthLabelY = startY + panelHeight + 25; // Y position of panel width labels
-    const totalWidthLineY = panelWidthLabelY + 40; // Lowered by 20px (was 20, now 40)
+    const totalWidthLineY = panelWidthLabelY + 70; // Lowered by 50px total (was 20, now 70)
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
@@ -668,135 +668,28 @@ function renderDiagram(solution) {
     totalWidthLabel.textContent = labelText;
     svg.appendChild(totalWidthLabel);
     
-    // Add arrowhead marker definition (needed before arrows)
-    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-    marker.setAttribute('id', 'arrowhead');
-    marker.setAttribute('markerWidth', '10');
-    marker.setAttribute('markerHeight', '10');
-    marker.setAttribute('refX', '9');
-    marker.setAttribute('refY', '3');
-    marker.setAttribute('orient', 'auto');
-    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    polygon.setAttribute('points', '0 0, 10 3, 0 6');
-    polygon.setAttribute('fill', '#000');
-    marker.appendChild(polygon);
-    const existingDefs = svg.querySelector('defs');
-    if (existingDefs) {
-        existingDefs.appendChild(marker);
-    }
-    
-    // Add detail view arrows and image reference (like technical drawing)
-    // Position circles between the total width line and the curtain (below the curtain)
+    // Add detail view images directly on corners (no arrows)
     const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
     const lastPanelY = startY + panelHeight; // Bottom of last panel
     const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel
     
-    // Calculate position for circles: between total width line and curtain bottom
-    // Place them in the middle of that space
-    const spaceBetweenLineAndCurtain = totalWidthLineY - lastPanelY;
-    const circleY = lastPanelY + spaceBetweenLineAndCurtain / 2; // Middle position between line and curtain
+    // Circle radius reduced by 10%: 45 * 0.9 = 40.5, round to 40
+    const circleRadius = 40;
+    const imageSize = 67.5; // 75 * 0.9 = 67.5
     
-    // Arrow 1: From right corner of the curtain (last panel) to image "1"
-    // The bottom circle stays connected to the same corner (right bottom of last panel) but positioned below the first part
-    const firstPanelX = startX; // Left edge of first panel
-    const firstPanelY = startY + panelHeight; // Bottom of first panel
-    const image1X = firstPanelX - 60; // Position to the left of first panel (below first part)
-    const image1Y = circleY; // Position between line and curtain
+    // Image 1: Position on right bottom corner of last panel
+    const image1X = lastPanelX;
+    const image1Y = lastPanelY;
     
-    // Draw arrow from right corner of last panel to image "1" (circle is positioned below first part)
-    const arrow1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    arrow1.setAttribute('x1', lastPanelX);
-    arrow1.setAttribute('y1', lastPanelY);
-    arrow1.setAttribute('x2', image1X);
-    arrow1.setAttribute('y2', image1Y);
-    arrow1.setAttribute('stroke', '#000');
-    arrow1.setAttribute('stroke-width', '1.5');
-    arrow1.setAttribute('marker-end', 'url(#arrowhead)');
-    svg.appendChild(arrow1);
-    
-    // Arrow 2: From bottom-left corner of the rightmost outer panel (last panel)
-    // The top circle moves to the bottom-left corner of the right outer part
-    if (solution.parts > 1) {
-        const connectionX = lastPanelInnerEdgeX; // Left edge of last panel (bottom-left corner)
-        const connectionY = lastPanelY; // Bottom corner of panel
-        
-        // Position image "2.png" near the bottom-left corner of last panel, circle positioned between line and curtain
-        const image2X = connectionX - 60; // Position to the left of connection point (shorter line)
-        const image2Y = circleY; // Position between line and curtain
-        
-        // Draw arrow from bottom-left corner of last panel to image "2" (shorter line)
-        const arrow2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        arrow2.setAttribute('x1', connectionX);
-        arrow2.setAttribute('y1', connectionY); // Bottom-left corner
-        arrow2.setAttribute('x2', image2X);
-        arrow2.setAttribute('y2', image2Y);
-        arrow2.setAttribute('stroke', '#000');
-        arrow2.setAttribute('stroke-width', '1.5');
-        arrow2.setAttribute('marker-end', 'url(#arrowhead)');
-        svg.appendChild(arrow2);
-        
-        // Add image "2.png" in circle below the curtain
-        const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        image2Circle.setAttribute('cx', image2X);
-        image2Circle.setAttribute('cy', image2Y);
-        image2Circle.setAttribute('r', '45'); // Increased by 50% (30 * 1.5 = 45)
-        image2Circle.setAttribute('fill', 'white');
-        image2Circle.setAttribute('stroke', '#000');
-        image2Circle.setAttribute('stroke-width', '2');
-        svg.appendChild(image2Circle);
-        
-        // Add image 2.png inside the circle - convert to base64 for PDF compatibility
-        const image2Size = 75 * 1.3; // 97.5px
-        const image2Radius = 45; // Circle radius
-        
-        // Create clip path for image 2
-        const clipPath2 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-        clipPath2.setAttribute('id', `clipCircle2_${image2X}_${image2Y}`);
-        clipPath2.setAttribute('clipPathUnits', 'userSpaceOnUse');
-        const clipCircle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        clipCircle2.setAttribute('cx', image2X.toString());
-        clipCircle2.setAttribute('cy', image2Y.toString());
-        clipCircle2.setAttribute('r', image2Radius.toString());
-        clipPath2.appendChild(clipCircle2);
-        const existingDefs2 = svg.querySelector('defs');
-        if (existingDefs2) {
-            existingDefs2.appendChild(clipPath2);
-        }
-        
-        const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        image2Img.setAttribute('x', image2X - image2Size / 2); // Center the image
-        image2Img.setAttribute('y', image2Y - image2Size / 2); // Center the image
-        image2Img.setAttribute('width', image2Size.toString());
-        image2Img.setAttribute('height', image2Size.toString());
-        image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-        // Apply clip path to keep image within circle boundaries
-        image2Img.setAttribute('clip-path', `url(#clipCircle2_${image2X}_${image2Y})`);
-        // Load image and convert to base64
-        loadImageAsBase64('2.png').then(base64 => {
-            if (base64) {
-                image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
-                image2Img.setAttribute('href', base64);
-            }
-        }).catch(() => {
-            // If image fails to load, keep the original href
-            image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '2.png');
-            image2Img.setAttribute('href', '2.png');
-        });
-        svg.appendChild(image2Img);
-    }
-    
-    // Add image "1.jpg" in circle below the curtain
+    // Add image "1.jpg" in circle on the corner
     const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     image1Circle.setAttribute('cx', image1X);
     image1Circle.setAttribute('cy', image1Y);
-    image1Circle.setAttribute('r', '45'); // Increased by 50% (30 * 1.5 = 45)
+    image1Circle.setAttribute('r', circleRadius.toString());
     image1Circle.setAttribute('fill', 'white');
     image1Circle.setAttribute('stroke', '#000');
     image1Circle.setAttribute('stroke-width', '2');
     svg.appendChild(image1Circle);
-    
-    // Add image 1.jpg inside the circle - convert to base64 for PDF compatibility
-    const image1Radius = 45; // Circle radius
     
     // Create clip path for image 1
     const clipPath1 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
@@ -805,7 +698,7 @@ function renderDiagram(solution) {
     const clipCircle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     clipCircle1.setAttribute('cx', image1X.toString());
     clipCircle1.setAttribute('cy', image1Y.toString());
-    clipCircle1.setAttribute('r', image1Radius.toString());
+    clipCircle1.setAttribute('r', circleRadius.toString());
     clipPath1.appendChild(clipCircle1);
     const existingDefs1 = svg.querySelector('defs');
     if (existingDefs1) {
@@ -813,25 +706,70 @@ function renderDiagram(solution) {
     }
     
     const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    image1Img.setAttribute('x', image1X - 37.5); // 25 * 1.5 = 37.5
-    image1Img.setAttribute('y', image1Y - 37.5); // 25 * 1.5 = 37.5
-    image1Img.setAttribute('width', '75'); // 50 * 1.5 = 75
-    image1Img.setAttribute('height', '75'); // 50 * 1.5 = 75
+    image1Img.setAttribute('x', (image1X - imageSize / 2).toString());
+    image1Img.setAttribute('y', (image1Y - imageSize / 2).toString());
+    image1Img.setAttribute('width', imageSize.toString());
+    image1Img.setAttribute('height', imageSize.toString());
     image1Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    // Apply clip path to keep image within circle boundaries
     image1Img.setAttribute('clip-path', `url(#clipCircle1_${image1X}_${image1Y})`);
-    // Load image and convert to base64
     loadImageAsBase64('1.jpg').then(base64 => {
         if (base64) {
             image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
             image1Img.setAttribute('href', base64);
         }
     }).catch(() => {
-        // If image fails to load, keep the original href
         image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '1.jpg');
         image1Img.setAttribute('href', '1.jpg');
     });
     svg.appendChild(image1Img);
+    
+    // Image 2: Position on bottom-left corner of last panel (if more than 1 part)
+    if (solution.parts > 1) {
+        const image2X = lastPanelInnerEdgeX; // Left edge of last panel
+        const image2Y = lastPanelY; // Bottom of last panel
+        
+        // Add image "2.png" in circle on the corner
+        const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        image2Circle.setAttribute('cx', image2X);
+        image2Circle.setAttribute('cy', image2Y);
+        image2Circle.setAttribute('r', circleRadius.toString());
+        image2Circle.setAttribute('fill', 'white');
+        image2Circle.setAttribute('stroke', '#000');
+        image2Circle.setAttribute('stroke-width', '2');
+        svg.appendChild(image2Circle);
+        
+        // Create clip path for image 2
+        const clipPath2 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+        clipPath2.setAttribute('id', `clipCircle2_${image2X}_${image2Y}`);
+        clipPath2.setAttribute('clipPathUnits', 'userSpaceOnUse');
+        const clipCircle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        clipCircle2.setAttribute('cx', image2X.toString());
+        clipCircle2.setAttribute('cy', image2Y.toString());
+        clipCircle2.setAttribute('r', circleRadius.toString());
+        clipPath2.appendChild(clipCircle2);
+        const existingDefs2 = svg.querySelector('defs');
+        if (existingDefs2) {
+            existingDefs2.appendChild(clipPath2);
+        }
+        
+        const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        image2Img.setAttribute('x', (image2X - imageSize / 2).toString());
+        image2Img.setAttribute('y', (image2Y - imageSize / 2).toString());
+        image2Img.setAttribute('width', imageSize.toString());
+        image2Img.setAttribute('height', imageSize.toString());
+        image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        image2Img.setAttribute('clip-path', `url(#clipCircle2_${image2X}_${image2Y})`);
+        loadImageAsBase64('2.png').then(base64 => {
+            if (base64) {
+                image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
+                image2Img.setAttribute('href', base64);
+            }
+        }).catch(() => {
+            image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '2.png');
+            image2Img.setAttribute('href', '2.png');
+        });
+        svg.appendChild(image2Img);
+    }
     
     // Store SVG reference for PDF export
     state.diagramSVG = svg;
@@ -996,15 +934,16 @@ async function exportToPDF() {
         const canvasHeight = canvas.height;
         const canvasAspectRatio = canvasWidth / canvasHeight;
         
-        // Use minimal margins to maximize diagram size
-        const availableWidth = pdfWidth - margin * 2;
+        // Reserve space on the right for roll information (60mm)
+        const rollInfoWidth = 60;
+        const availableWidth = pdfWidth - margin * 2 - rollInfoWidth;
         const availableHeight = pdfHeight - topMargin - margin;
         
         const pdfAspectRatio = availableWidth / availableHeight;
         
         let imgWidth, imgHeight;
         if (canvasAspectRatio > pdfAspectRatio) {
-            // Canvas is wider - fit to width (fill entire width)
+            // Canvas is wider - fit to width (fill available width)
             imgWidth = availableWidth;
             imgHeight = imgWidth / canvasAspectRatio;
     } else {
@@ -1013,8 +952,8 @@ async function exportToPDF() {
             imgWidth = imgHeight * canvasAspectRatio;
         }
         
-        // Center the image horizontally, position below project/curtain names
-        const x = (pdfWidth - imgWidth) / 2;
+        // Position the image on the left, leaving space on the right for roll info
+        const x = margin;
         const y = topMargin; // Position below project/curtain names
         
         // Convert canvas to image data
@@ -1022,6 +961,54 @@ async function exportToPDF() {
         
         // Add image to PDF
         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+        
+        // Add roll information on the right side of PDF
+        const rollInfoX = x + imgWidth + 10; // 10mm margin from diagram
+        const rollInfoY = y + 10; // Start 10mm from top
+        const rollInfoLineHeight = 7; // Line height in mm
+        
+        // Set font for roll information
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        
+        // Title
+        pdf.text('Roll Information / מידע גלילים', rollInfoX, rollInfoY);
+        
+        // Roll details
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        let currentY = rollInfoY + rollInfoLineHeight;
+        
+        // Number of rolls needed
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Rolls Needed:', rollInfoX, currentY);
+        pdf.setFont('helvetica', 'normal');
+        currentY += rollInfoLineHeight;
+        pdf.text(`${solution.rollsNeeded} rolls`, rollInfoX, currentY);
+        currentY += rollInfoLineHeight * 1.5;
+        
+        // Fabric width
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Fabric Width:', rollInfoX, currentY);
+        pdf.setFont('helvetica', 'normal');
+        currentY += rollInfoLineHeight;
+        pdf.text(`${solution.fabricWidth} mm`, rollInfoX, currentY);
+        currentY += rollInfoLineHeight * 1.5;
+        
+        // Panels per roll
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Panels per Roll:', rollInfoX, currentY);
+        pdf.setFont('helvetica', 'normal');
+        currentY += rollInfoLineHeight;
+        pdf.text(`${solution.panelsPerRoll} panels`, rollInfoX, currentY);
+        currentY += rollInfoLineHeight * 1.5;
+        
+        // Total panels
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Total Panels:', rollInfoX, currentY);
+        pdf.setFont('helvetica', 'normal');
+        currentY += rollInfoLineHeight;
+        pdf.text(`${solution.parts} panels`, rollInfoX, currentY);
         
         // Generate PDF filename with curtain name
         const filenameCurtainName = state.curtainName.trim() || 'Curtain';
