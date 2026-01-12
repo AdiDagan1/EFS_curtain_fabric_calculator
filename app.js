@@ -668,107 +668,91 @@ function renderDiagram(solution) {
     totalWidthLabel.textContent = labelText;
     svg.appendChild(totalWidthLabel);
     
-    // Add detail view images directly on corners (no arrows)
-    const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
-    const lastPanelY = startY + panelHeight; // Bottom of last panel
-    const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel
-    
-    // Circle radius reduced by 10%: 45 * 0.9 = 40.5, round to 40
-    const circleRadius = 40;
-    const imageSize = 67.5; // 75 * 0.9 = 67.5
-    
-    // Image 1: Position on right bottom corner of last panel
-    const image1X = lastPanelX;
-    const image1Y = lastPanelY;
-    
-    // Add image "1.jpg" in circle on the corner
-    const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    image1Circle.setAttribute('cx', image1X);
-    image1Circle.setAttribute('cy', image1Y);
-    image1Circle.setAttribute('r', circleRadius.toString());
-    image1Circle.setAttribute('fill', 'white');
-    image1Circle.setAttribute('stroke', '#000');
-    image1Circle.setAttribute('stroke-width', '2');
-    svg.appendChild(image1Circle);
-    
-    // Create clip path for image 1
-    const clipPath1 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-    clipPath1.setAttribute('id', `clipCircle1_${image1X}_${image1Y}`);
-    clipPath1.setAttribute('clipPathUnits', 'userSpaceOnUse');
-    const clipCircle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    clipCircle1.setAttribute('cx', image1X.toString());
-    clipCircle1.setAttribute('cy', image1Y.toString());
-    clipCircle1.setAttribute('r', circleRadius.toString());
-    clipPath1.appendChild(clipCircle1);
-    const existingDefs1 = svg.querySelector('defs');
-    if (existingDefs1) {
-        existingDefs1.appendChild(clipPath1);
-    }
-    
-    const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    image1Img.setAttribute('x', (image1X - imageSize / 2).toString());
-    image1Img.setAttribute('y', (image1Y - imageSize / 2).toString());
-    image1Img.setAttribute('width', imageSize.toString());
-    image1Img.setAttribute('height', imageSize.toString());
-    image1Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    image1Img.setAttribute('clip-path', `url(#clipCircle1_${image1X}_${image1Y})`);
-    loadImageAsBase64('1.jpg').then(base64 => {
-        if (base64) {
-            image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
-            image1Img.setAttribute('href', base64);
-        }
-    }).catch(() => {
-        image1Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '1.jpg');
-        image1Img.setAttribute('href', '1.jpg');
-    });
-    svg.appendChild(image1Img);
-    
-    // Image 2: Position on bottom-left corner of last panel (if more than 1 part)
-    if (solution.parts > 1) {
-        const image2X = lastPanelInnerEdgeX; // Left edge of last panel
-        const image2Y = lastPanelY; // Bottom of last panel
+    // Helper function to add image circle on corner
+    const addImageCircle = (x, y, imagePath, circleId) => {
+        // Circle radius reduced by 20%: 40 * 0.8 = 32
+        const circleRadius = 32;
+        const imageSize = 54; // 67.5 * 0.8 = 54
         
-        // Add image "2.png" in circle on the corner
-        const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        image2Circle.setAttribute('cx', image2X);
-        image2Circle.setAttribute('cy', image2Y);
-        image2Circle.setAttribute('r', circleRadius.toString());
-        image2Circle.setAttribute('fill', 'white');
-        image2Circle.setAttribute('stroke', '#000');
-        image2Circle.setAttribute('stroke-width', '2');
-        svg.appendChild(image2Circle);
+        // Add circle
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x.toString());
+        circle.setAttribute('cy', y.toString());
+        circle.setAttribute('r', circleRadius.toString());
+        circle.setAttribute('fill', 'white');
+        circle.setAttribute('stroke', '#000');
+        circle.setAttribute('stroke-width', '2');
+        svg.appendChild(circle);
         
-        // Create clip path for image 2
-        const clipPath2 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-        clipPath2.setAttribute('id', `clipCircle2_${image2X}_${image2Y}`);
-        clipPath2.setAttribute('clipPathUnits', 'userSpaceOnUse');
-        const clipCircle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        clipCircle2.setAttribute('cx', image2X.toString());
-        clipCircle2.setAttribute('cy', image2Y.toString());
-        clipCircle2.setAttribute('r', circleRadius.toString());
-        clipPath2.appendChild(clipCircle2);
-        const existingDefs2 = svg.querySelector('defs');
-        if (existingDefs2) {
-            existingDefs2.appendChild(clipPath2);
+        // Create clip path
+        const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+        clipPath.setAttribute('id', `clipCircle_${circleId}_${x}_${y}`);
+        clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
+        const clipCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        clipCircle.setAttribute('cx', x.toString());
+        clipCircle.setAttribute('cy', y.toString());
+        clipCircle.setAttribute('r', circleRadius.toString());
+        clipPath.appendChild(clipCircle);
+        const existingDefs = svg.querySelector('defs');
+        if (existingDefs) {
+            existingDefs.appendChild(clipPath);
         }
         
-        const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        image2Img.setAttribute('x', (image2X - imageSize / 2).toString());
-        image2Img.setAttribute('y', (image2Y - imageSize / 2).toString());
-        image2Img.setAttribute('width', imageSize.toString());
-        image2Img.setAttribute('height', imageSize.toString());
-        image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-        image2Img.setAttribute('clip-path', `url(#clipCircle2_${image2X}_${image2Y})`);
-        loadImageAsBase64('2.png').then(base64 => {
+        // Add image
+        const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        img.setAttribute('x', (x - imageSize / 2).toString());
+        img.setAttribute('y', (y - imageSize / 2).toString());
+        img.setAttribute('width', imageSize.toString());
+        img.setAttribute('height', imageSize.toString());
+        img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        img.setAttribute('clip-path', `url(#clipCircle_${circleId}_${x}_${y})`);
+        loadImageAsBase64(imagePath).then(base64 => {
             if (base64) {
-                image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
-                image2Img.setAttribute('href', base64);
+                img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
+                img.setAttribute('href', base64);
             }
         }).catch(() => {
-            image2Img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '2.png');
-            image2Img.setAttribute('href', '2.png');
+            img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', imagePath);
+            img.setAttribute('href', imagePath);
         });
-        svg.appendChild(image2Img);
+        svg.appendChild(img);
+    };
+    
+    // Add detail view images on all bottom corners
+    const bottomY = startY + panelHeight; // Bottom of all panels
+    
+    // Loop through all panels and add circles on bottom corners
+    let panelX = startX;
+    for (let i = 0; i < solution.parts; i++) {
+        const isOuter = i === 0 || i === solution.parts - 1;
+        const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
+        
+        if (isOuter) {
+            // Outer panels: add image 1 on outer corner
+            if (i === 0) {
+                // Left outer panel: left bottom corner (outer corner)
+                addImageCircle(panelX, bottomY, '1.jpg', '1');
+                // If only one panel, also add image 1 on right corner
+                if (solution.parts === 1) {
+                    addImageCircle(panelX + panelWidth, bottomY, '1.jpg', '1');
+                } else {
+                    // Left outer panel: right bottom corner (inner corner)
+                    addImageCircle(panelX + panelWidth, bottomY, '2.png', '2');
+                }
+            } else {
+                // Right outer panel: right bottom corner (outer corner)
+                addImageCircle(panelX + panelWidth, bottomY, '1.jpg', '1');
+                // Right outer panel: left bottom corner (inner corner)
+                addImageCircle(panelX, bottomY, '2.png', '2');
+            }
+        } else {
+            // Inner panels: add image 2 on both bottom corners
+            addImageCircle(panelX, bottomY, '2.png', '2'); // Left corner
+            addImageCircle(panelX + panelWidth, bottomY, '2.png', '2'); // Right corner
+        }
+        
+        // Move to next panel
+        panelX += panelWidth + gapPx;
     }
     
     // Store SVG reference for PDF export
@@ -963,9 +947,22 @@ async function exportToPDF() {
         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
         
         // Add roll information on the right side of PDF
-        const rollInfoX = x + imgWidth + 10; // 10mm margin from diagram
-        const rollInfoY = y + 10; // Start 10mm from top
+        // Convert 30px to mm: 30px * 0.264583mm/px ≈ 8mm
+        const pxToMm = 0.264583;
+        const offsetX = 30 * pxToMm; // 30px to mm
+        const offsetY = 30 * pxToMm; // 30px to mm
+        const rollInfoX = x + imgWidth + 10 - offsetX; // 10mm margin from diagram, moved 30px left
+        const rollInfoY = y + 10 + offsetY; // Start 10mm from top, moved 30px down
         const rollInfoLineHeight = 7; // Line height in mm
+        
+        // Fixed box dimensions
+        const boxWidth = 50; // Fixed width in mm
+        const boxHeight = rollInfoLineHeight * 8 + 4; // Approximate height with padding
+        
+        // Draw border (rectangle)
+        pdf.setDrawColor(0, 0, 0); // Black border
+        pdf.setLineWidth(0.5); // 0.5mm line width
+        pdf.rect(rollInfoX - 2, rollInfoY - rollInfoLineHeight - 2, boxWidth, boxHeight);
         
         // Set font for roll information
         pdf.setFontSize(12);
