@@ -998,21 +998,12 @@ async function exportToPDF() {
         const rollInfoY = y + 10 + offsetY; // Start 10mm from top, moved 30px down
         const rollInfoLineHeight = 7; // Line height in mm
         
-        // Fixed box dimensions - smaller to fit only rolls count and fabric width
-        const boxWidth = 45; // Fixed width in mm
-        const boxHeight = rollInfoLineHeight * 4 + 4; // Approximate height with padding (only 2 items + title)
-        
-        // Draw border (rectangle)
-        pdf.setDrawColor(0, 0, 0); // Black border
-        pdf.setLineWidth(0.5); // 0.5mm line width
-        pdf.rect(rollInfoX - 2, rollInfoY - rollInfoLineHeight - 2, boxWidth, boxHeight);
-        
-        // Set font for roll information - smaller title to fit in box
+        // Set font for roll information
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
         
-        // Title - smaller font
-        pdf.text('Roll Info / מידע גלילים', rollInfoX, rollInfoY);
+        // Title - English only to avoid encoding issues
+        pdf.text('Roll Info', rollInfoX, rollInfoY);
         
         // Roll details
         pdf.setFont('helvetica', 'normal');
@@ -1025,7 +1016,7 @@ async function exportToPDF() {
         pdf.setFont('helvetica', 'normal');
         currentY += rollInfoLineHeight;
         pdf.text(`${solution.rollsNeeded}`, rollInfoX, currentY);
-        currentY += rollInfoLineHeight * 1.5;
+        currentY += rollInfoLineHeight * 0.8; // Reduced spacing between rolls and width
         
         // Fabric width
         pdf.setFont('helvetica', 'bold');
