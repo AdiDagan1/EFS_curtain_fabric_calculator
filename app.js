@@ -341,7 +341,7 @@ function renderDiagram(solution) {
     const maxWidth = containerRect.width || 1200; // Fallback if container not ready
     const maxHeight = containerRect.height || 600; // Fallback if container not ready
     
-    // Fixed panel dimensions - 70% of page dimensions (constant size, only number of panels changes)
+    // Fixed diagram dimensions - 70% of page dimensions (constant size, only panel sizes change)
     // Calculate based on PDF page size (A4 landscape: 297mm x 210mm)
     // Convert to pixels: at 96 DPI, 1mm ≈ 3.78px
     const pdfWidthMm = 297; // A4 landscape width in mm
@@ -349,23 +349,27 @@ function renderDiagram(solution) {
     const pdfWidthPx = pdfWidthMm * 3.78; // Convert to pixels
     const pdfHeightPx = pdfHeightMm * 3.78; // Convert to pixels
     
-    // Panel dimensions: 70% of PDF page
-    const FIXED_PANEL_HEIGHT = Math.floor(pdfHeightPx * 0.7); // 70% of PDF height
-    // Panel width: 70% of PDF width, but need to account for gaps between panels
-    // For maximum 5 parts: totalWidth = 5 * panelWidth + 4 * gap
-    // So: panelWidth = (0.7 * pdfWidth - 4 * gap) / 5
-    const gapPixels = 40; // Fixed gap between panels in pixels
-    const maxParts = 5; // Maximum number of parts
-    const totalAvailableWidth = pdfWidthPx * 0.7; // 70% of PDF width
-    const FIXED_PANEL_WIDTH = Math.floor((totalAvailableWidth - (maxParts - 1) * gapPixels) / maxParts);
+    // Fixed diagram dimensions: 70% of PDF page (constant)
+    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx * 0.7); // 70% of PDF height - CONSTANT
+    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx * 0.7); // 70% of PDF width - CONSTANT
     
-    // Use fixed dimensions for display (calculation remains unchanged)
-    const panelHeight = FIXED_PANEL_HEIGHT;
-    const outerPanelWidth = FIXED_PANEL_WIDTH;
-    const innerPanelWidth = FIXED_PANEL_WIDTH;
+    // Fixed gap between panels
+    const gapPixels = 40; // Fixed gap between panels in pixels
+    
+    // Calculate panel dimensions based on number of parts
+    // totalWidth = 2 * outerPanelWidth + (parts - 2) * innerPanelWidth + (parts - 1) * gap
+    // Since outerPanelWidth = innerPanelWidth (same visual size), we can simplify:
+    // totalWidth = parts * panelWidth + (parts - 1) * gap
+    // So: panelWidth = (totalWidth - (parts - 1) * gap) / parts
+    const panelWidth = Math.floor((FIXED_DIAGRAM_WIDTH - (solution.parts - 1) * gapPixels) / solution.parts);
+    
+    // Use fixed dimensions for display
+    const panelHeight = FIXED_DIAGRAM_HEIGHT; // Constant height
+    const outerPanelWidth = panelWidth; // Same width for all panels (visual)
+    const innerPanelWidth = panelWidth; // Same width for all panels (visual)
     const gapPx = gapPixels;
     
-    // Calculate total diagram dimensions
+    // Total diagram width (should equal FIXED_DIAGRAM_WIDTH)
     const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
     
     // Starting position - exactly 10px from top, with margin for height indicator on left
@@ -665,10 +669,13 @@ function renderDiagram(solution) {
     
     // Add detail view arrows and image reference (like technical drawing)
     // Arrow 1: From right corner of the curtain (last panel) to image "1" - further from diagram
+    // Extend arrow by 40%
     const lastPanelX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx) + outerPanelWidth;
     const lastPanelY = startY + panelHeight; // Bottom of last panel
     // Position image "1" further from the panel to avoid overlapping with diagram
-    const image1X = lastPanelX + 80; // Further distance from panel edge (80px)
+    const baseArrow1Distance = 80; // Base distance
+    const extendedArrow1Distance = baseArrow1Distance * 1.4; // Extend by 40%
+    const image1X = lastPanelX + extendedArrow1Distance; // Extended distance from panel edge
     const image1Y = lastPanelY - 20; // Further from bottom
     
     // Draw arrow from right corner of last panel to image "1"
@@ -687,9 +694,9 @@ function renderDiagram(solution) {
     if (solution.parts > 1) {
         const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
         const connectionY = startY; // Top corner of panel (inner edge, top)
-        // Calculate arrow length and extend it by 20%
+        // Calculate arrow length and extend it by 40% (was 20%, now 40%)
         const baseArrowLength = 100; // Base length
-        const extendedArrowLength = baseArrowLength * 1.2; // Extend by 20%
+        const extendedArrowLength = baseArrowLength * 1.4; // Extend by 40%
         // Position image "2.png" above the diagram, further to the right, avoiding the title
         const image2X = lastPanelInnerEdgeX + extendedArrowLength; // Extended distance from inner edge
         const image2Y = -15; // Above the diagram, below title (title is at Y = -30), with more spacing
@@ -705,21 +712,23 @@ function renderDiagram(solution) {
         svg.appendChild(arrow2);
         
         // Add image "2.png" in circle above the diagram
+        // Increase circle and image size by 50%
         const image2Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         image2Circle.setAttribute('cx', image2X);
         image2Circle.setAttribute('cy', image2Y);
-        image2Circle.setAttribute('r', '30'); // Larger circle to fit image
+        image2Circle.setAttribute('r', '45'); // Increased by 50% (30 * 1.5 = 45)
         image2Circle.setAttribute('fill', 'white');
         image2Circle.setAttribute('stroke', '#000');
         image2Circle.setAttribute('stroke-width', '2');
         svg.appendChild(image2Circle);
         
         // Add image 2.png inside the circle - convert to base64 for PDF compatibility
+        // Increase image size by 50%
         const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        image2Img.setAttribute('x', image2X - 25);
-        image2Img.setAttribute('y', image2Y - 25);
-        image2Img.setAttribute('width', '50');
-        image2Img.setAttribute('height', '50');
+        image2Img.setAttribute('x', image2X - 37.5); // 25 * 1.5 = 37.5
+        image2Img.setAttribute('y', image2Y - 37.5); // 25 * 1.5 = 37.5
+        image2Img.setAttribute('width', '75'); // 50 * 1.5 = 75
+        image2Img.setAttribute('height', '75'); // 50 * 1.5 = 75
         image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         // Load image and convert to base64
         loadImageAsBase64('2.png').then(base64 => {
@@ -753,21 +762,23 @@ function renderDiagram(solution) {
     }
     
     // Add image "1.jpg" in circle at the target position (for external connection)
+    // Increase circle and image size by 50%
     const image1Circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     image1Circle.setAttribute('cx', image1X);
     image1Circle.setAttribute('cy', image1Y);
-    image1Circle.setAttribute('r', '30'); // Larger circle to fit image
+    image1Circle.setAttribute('r', '45'); // Increased by 50% (30 * 1.5 = 45)
     image1Circle.setAttribute('fill', 'white');
     image1Circle.setAttribute('stroke', '#000');
     image1Circle.setAttribute('stroke-width', '2');
     svg.appendChild(image1Circle);
     
     // Add image 1.jpg inside the circle - convert to base64 for PDF compatibility
+    // Increase image size by 50%
     const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    image1Img.setAttribute('x', image1X - 25);
-    image1Img.setAttribute('y', image1Y - 25);
-    image1Img.setAttribute('width', '50');
-    image1Img.setAttribute('height', '50');
+    image1Img.setAttribute('x', image1X - 37.5); // 25 * 1.5 = 37.5
+    image1Img.setAttribute('y', image1Y - 37.5); // 25 * 1.5 = 37.5
+    image1Img.setAttribute('width', '75'); // 50 * 1.5 = 75
+    image1Img.setAttribute('height', '75'); // 50 * 1.5 = 75
     image1Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     // Load image and convert to base64
     loadImageAsBase64('1.jpg').then(base64 => {
