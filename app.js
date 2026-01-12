@@ -694,9 +694,9 @@ function renderDiagram(solution) {
     if (solution.parts > 1) {
         const lastPanelInnerEdgeX = startX + (solution.parts - 1) * (outerPanelWidth + gapPx); // Left edge of last panel (inner edge)
         const connectionY = startY; // Top corner of panel (inner edge, top)
-        // Calculate arrow length and extend it by 40% (was 20%, now 40%)
+        // Calculate arrow length and extend it by 40% + additional 50% = 110% total (1.4 * 1.5 = 2.1)
         const baseArrowLength = 100; // Base length
-        const extendedArrowLength = baseArrowLength * 1.4; // Extend by 40%
+        const extendedArrowLength = baseArrowLength * 1.4 * 1.5; // Extend by 40% then additional 50% = 210px total
         // Position image "2.png" above the diagram, further to the right, avoiding the title
         const image2X = lastPanelInnerEdgeX + extendedArrowLength; // Extended distance from inner edge
         const image2Y = -15; // Above the diagram, below title (title is at Y = -30), with more spacing
@@ -723,12 +723,13 @@ function renderDiagram(solution) {
         svg.appendChild(image2Circle);
         
         // Add image 2.png inside the circle - convert to base64 for PDF compatibility
-        // Increase image size by 50%
+        // Increase image size by 50% + additional 30% = 97.5px (75 * 1.3 = 97.5)
+        const image2Size = 75 * 1.3; // 97.5px
         const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        image2Img.setAttribute('x', image2X - 37.5); // 25 * 1.5 = 37.5
-        image2Img.setAttribute('y', image2Y - 37.5); // 25 * 1.5 = 37.5
-        image2Img.setAttribute('width', '75'); // 50 * 1.5 = 75
-        image2Img.setAttribute('height', '75'); // 50 * 1.5 = 75
+        image2Img.setAttribute('x', image2X - image2Size / 2); // Center the image
+        image2Img.setAttribute('y', image2Y - image2Size / 2); // Center the image
+        image2Img.setAttribute('width', image2Size.toString());
+        image2Img.setAttribute('height', image2Size.toString());
         image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         // Load image and convert to base64
         loadImageAsBase64('2.png').then(base64 => {
