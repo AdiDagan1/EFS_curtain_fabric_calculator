@@ -408,7 +408,7 @@ function renderDiagram(solution) {
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     // Always LTR for English labels (project/curtain names can be in Hebrew but are handled by browser)
     
-    // Define defs for patterns (dashed lines)
+    // Define defs for patterns (dashed lines) and clip paths
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     const dashPattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
     dashPattern.setAttribute('id', 'dashPattern');
@@ -425,6 +425,7 @@ function renderDiagram(solution) {
     dashLine.setAttribute('stroke-dasharray', '4,4');
     dashPattern.appendChild(dashLine);
     defs.appendChild(dashPattern);
+    
     svg.appendChild(defs);
     
     // Draw height indicator (vertical line on the left)
@@ -724,13 +725,32 @@ function renderDiagram(solution) {
         
         // Add image 2.png inside the circle - convert to base64 for PDF compatibility
         // Increase image size by 50% + additional 30% = 97.5px (75 * 1.3 = 97.5)
+        // Image will be clipped to circle boundaries using clipPath
         const image2Size = 75 * 1.3; // 97.5px
+        const image2Radius = 45; // Circle radius
+        
+        // Create clip path for image 2
+        const clipPath2 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+        clipPath2.setAttribute('id', `clipCircle2_${image2X}_${image2Y}`);
+        clipPath2.setAttribute('clipPathUnits', 'userSpaceOnUse');
+        const clipCircle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        clipCircle2.setAttribute('cx', image2X.toString());
+        clipCircle2.setAttribute('cy', image2Y.toString());
+        clipCircle2.setAttribute('r', image2Radius.toString());
+        clipPath2.appendChild(clipCircle2);
+        const existingDefs2 = svg.querySelector('defs');
+        if (existingDefs2) {
+            existingDefs2.appendChild(clipPath2);
+        }
+        
         const image2Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
         image2Img.setAttribute('x', image2X - image2Size / 2); // Center the image
         image2Img.setAttribute('y', image2Y - image2Size / 2); // Center the image
         image2Img.setAttribute('width', image2Size.toString());
         image2Img.setAttribute('height', image2Size.toString());
         image2Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        // Apply clip path to keep image within circle boundaries
+        image2Img.setAttribute('clip-path', `url(#clipCircle2_${image2X}_${image2Y})`);
         // Load image and convert to base64
         loadImageAsBase64('2.png').then(base64 => {
             if (base64) {
@@ -775,12 +795,31 @@ function renderDiagram(solution) {
     
     // Add image 1.jpg inside the circle - convert to base64 for PDF compatibility
     // Increase image size by 50%
+    // Image will be clipped to circle boundaries using clipPath
+    const image1Radius = 45; // Circle radius
+    
+    // Create clip path for image 1
+    const clipPath1 = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    clipPath1.setAttribute('id', `clipCircle1_${image1X}_${image1Y}`);
+    clipPath1.setAttribute('clipPathUnits', 'userSpaceOnUse');
+    const clipCircle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    clipCircle1.setAttribute('cx', image1X.toString());
+    clipCircle1.setAttribute('cy', image1Y.toString());
+    clipCircle1.setAttribute('r', image1Radius.toString());
+    clipPath1.appendChild(clipCircle1);
+    const existingDefs1 = svg.querySelector('defs');
+    if (existingDefs1) {
+        existingDefs1.appendChild(clipPath1);
+    }
+    
     const image1Img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     image1Img.setAttribute('x', image1X - 37.5); // 25 * 1.5 = 37.5
     image1Img.setAttribute('y', image1Y - 37.5); // 25 * 1.5 = 37.5
     image1Img.setAttribute('width', '75'); // 50 * 1.5 = 75
     image1Img.setAttribute('height', '75'); // 50 * 1.5 = 75
     image1Img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    // Apply clip path to keep image within circle boundaries
+    image1Img.setAttribute('clip-path', `url(#clipCircle1_${image1X}_${image1Y})`);
     // Load image and convert to base64
     loadImageAsBase64('1.jpg').then(base64 => {
         if (base64) {
