@@ -171,14 +171,15 @@ function calculate() {
 
 /**
  * Find the optimal fabric solution with minimum waste
+ * Supports different fabric widths for outer and inner panels
  * 
  * Algorithm:
- * 1. Loop over all fabric widths that exist in inventory
- * 2. For each fabric width, loop over all valid parts values (2 to inventory[fabricWidth])
- * 3. For each combination, validate folding rules and calculate waste
+ * 1. Loop over all valid parts values (2 to max)
+ * 2. For each parts value, calculate netWidth and cut widths
+ * 3. Try all combinations of fabric widths for outer and inner panels
  * 4. Select the solution with minimum total waste
  * 
- * @returns {Object|null} Solution object with fabricWidth, parts, netWidth, outerPanelWidth, innerPanelWidth, waste
+ * @returns {Object|null} Solution object with outerFabricWidth, innerFabricWidth, parts, netWidth, outerPanelWidth, innerPanelWidth, waste
  */
 function findOptimalSolution() {
     const totalCurtainWidth = Number(state.curtainWidth); // in mm - ensure number
@@ -196,88 +197,109 @@ function findOptimalSolution() {
     let bestSolution = null;
     let minWaste = Infinity;
 
-    // Loop over all fabric widths that exist in inventory
+    // Calculate maximum parts based on available inventory
+    let maxParts = 2;
     for (const fabricWidthMm of fabricWidths) {
-        const availableRolls = Number(inventory[fabricWidthMm]); // Ensure number
+        const availableRolls = Number(inventory[fabricWidthMm]);
+        if (availableRolls > 0) {
+            const panelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+            if (panelsPerRoll > 0) {
+                maxParts = Math.max(maxParts, availableRolls * panelsPerRoll);
+            }
+        }
+    }
+    maxParts = Math.min(maxParts, Math.ceil(totalCurtainWidth / 1500) + 5, 30);
+    
+    // Loop over all valid parts values
+    for (let parts = 2; parts <= maxParts; parts++) {
+        // Calculate net width per panel
+        let netWidth = totalCurtainWidth / parts;
         
-        // Skip if no inventory available
-        if (!availableRolls || availableRolls === 0) {
+        // Check for invalid netWidth (negative or zero)
+        if (netWidth <= 0) {
             continue;
         }
         
-        const fabricWidth = Number(fabricWidthMm); // Already in mm
+        // Round netWidth to 1 decimal place
+        netWidth = Math.round(netWidth * 10) / 10;
         
-        // Calculate how many panels can be cut from one roll based on height
-        // Each panel needs curtainHeight mm, so from one roll we can get:
-        const panelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+        // Calculate cut widths (different for outer and inner panels) - all in mm
+        const outerCutWidth = netWidth + OUTER_FOLD_MM; // netWidth + 180 mm
+        const innerCutWidth = netWidth + INNER_FOLD_MM;  // netWidth + 80 mm
         
-        // Skip if we can't cut at least 1 panel from a roll
-        if (panelsPerRoll < 1) {
-            continue;
-        }
-        
-        // Maximum panels we can cut from all available rolls
-        const maxPanelsFromRolls = availableRolls * panelsPerRoll;
-        
-        // For each fabric width, loop over all valid parts values
-        // Test from 2 up to maxPanelsFromRolls
-        const maxPartsToTest = Math.min(maxPanelsFromRolls, Math.ceil(totalCurtainWidth / fabricWidth) + 5, 30);
-        
-        for (let parts = 2; parts <= maxPartsToTest; parts++) {
-            // Calculate how many rolls we need for this number of parts
-            const rollsNeeded = Math.ceil(parts / panelsPerRoll);
+        // Try all combinations of fabric widths for outer and inner panels
+        for (const outerFabricWidthMm of fabricWidths) {
+            const outerAvailableRolls = Number(inventory[outerFabricWidthMm]);
+            if (outerAvailableRolls === 0) continue;
             
-            // Skip if we don't have enough rolls
-            if (rollsNeeded > availableRolls) {
+            const outerFabricWidth = Number(outerFabricWidthMm);
+            
+            // Check if outer panels fit
+            if (outerCutWidth > outerFabricWidth) {
                 continue;
             }
             
-            // Calculate net width per panel
-            // The totalCurtainWidth is the NET width (after all folds)
-            // All panels have the same net width after folding
-            // So: totalCurtainWidth (net) = parts * netWidth
-            // Therefore: netWidth = totalCurtainWidth / parts
-            let netWidth = totalCurtainWidth / parts;
+            // Calculate panels per roll for outer fabric
+            const outerPanelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+            if (outerPanelsPerRoll < 1) continue;
             
-            // Check for invalid netWidth (negative or zero)
-            if (netWidth <= 0) {
+            // We need 2 outer panels
+            const outerRollsNeeded = Math.ceil(2 / outerPanelsPerRoll);
+            if (outerRollsNeeded > outerAvailableRolls) {
                 continue;
             }
             
-            // Round netWidth to 1 decimal place (allow decimal values for real-world fabric cutting)
-            netWidth = Math.round(netWidth * 10) / 10;
-            
-            // Calculate cut widths (different for outer and inner panels) - all in mm
-            const outerCutWidth = netWidth + OUTER_FOLD_MM; // netWidth + 180 mm
-            const innerCutWidth = netWidth + INNER_FOLD_MM;  // netWidth + 80 mm
-            
-            // Validate that cut widths fit within fabric width (all in mm)
-            if (outerCutWidth > fabricWidth || innerCutWidth > fabricWidth) {
-                continue;
-            }
-            
-            // Calculate fabric waste per panel, then sum (all in mm)
-            // waste = 2 * (fabricWidth - outerCutWidth) + (parts - 2) * (fabricWidth - innerCutWidth)
-            const waste = 2 * (fabricWidth - outerCutWidth) + (parts - 2) * (fabricWidth - innerCutWidth);
-            
-            // Only consider solutions with non-negative waste
-            if (waste < 0) {
-                continue;
-            }
+            for (const innerFabricWidthMm of fabricWidths) {
+                const innerAvailableRolls = Number(inventory[innerFabricWidthMm]);
+                if (innerAvailableRolls === 0) continue;
+                
+                const innerFabricWidth = Number(innerFabricWidthMm);
+                
+                // Check if inner panels fit
+                if (innerCutWidth > innerFabricWidth) {
+                    continue;
+                }
+                
+                // Calculate panels per roll for inner fabric
+                const innerPanelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+                if (innerPanelsPerRoll < 1) continue;
+                
+                // We need (parts - 2) inner panels
+                const innerPanelsNeeded = parts - 2;
+                if (innerPanelsNeeded <= 0) continue;
+                
+                const innerRollsNeeded = Math.ceil(innerPanelsNeeded / innerPanelsPerRoll);
+                if (innerRollsNeeded > innerAvailableRolls) {
+                    continue;
+                }
+                
+                // Calculate total waste
+                const outerWaste = 2 * (outerFabricWidth - outerCutWidth);
+                const innerWaste = innerPanelsNeeded * (innerFabricWidth - innerCutWidth);
+                const totalWaste = outerWaste + innerWaste;
+                
+                // Only consider solutions with non-negative waste
+                if (totalWaste < 0) {
+                    continue;
+                }
 
-            // Check if this is a better solution (lower waste is better)
-            if (waste < minWaste) {
-                minWaste = waste;
-                bestSolution = {
-                    fabricWidth: fabricWidthMm,
-                    parts: parts,
-                    netWidth: netWidth, // in mm
-                    outerPanelWidth: outerCutWidth,  // in mm
-                    innerPanelWidth: innerCutWidth,  // in mm
-                    waste: waste, // in mm
-                    rollsNeeded: rollsNeeded, // Number of rolls needed
-                    panelsPerRoll: panelsPerRoll // Number of panels per roll
-                };
+                // Check if this is a better solution (lower waste is better)
+                if (totalWaste < minWaste) {
+                    minWaste = totalWaste;
+                    bestSolution = {
+                        outerFabricWidth: outerFabricWidthMm,
+                        innerFabricWidth: innerFabricWidthMm,
+                        parts: parts,
+                        netWidth: netWidth, // in mm
+                        outerPanelWidth: outerCutWidth,  // in mm
+                        innerPanelWidth: innerCutWidth,  // in mm
+                        waste: totalWaste, // in mm
+                        outerRollsNeeded: outerRollsNeeded,
+                        innerRollsNeeded: innerRollsNeeded,
+                        outerPanelsPerRoll: outerPanelsPerRoll,
+                        innerPanelsPerRoll: innerPanelsPerRoll
+                    };
+                }
             }
         }
     }
@@ -289,20 +311,29 @@ function findOptimalSolution() {
 function displayResults(solution) {
     const resultsDiv = document.getElementById('results');
     
+    // Check if solution uses different fabric widths
+    const usesDifferentWidths = solution.outerFabricWidth !== solution.innerFabricWidth;
+    
     // Display only in mm
     const html = `
         <div class="result-item">
-            <strong>Selected Fabric Width:</strong> ${solution.fabricWidth} mm
-        </div>
-        <div class="result-item">
             <strong>Number of Panels:</strong> ${solution.parts}
         </div>
+        ${usesDifferentWidths ? `
         <div class="result-item">
-            <strong>Panels per Roll:</strong> ${solution.panelsPerRoll || Math.floor(5000 / state.curtainHeight)}
+            <strong>Outer Panels Fabric:</strong> ${solution.outerFabricWidth} mm
+            <br><span style="margin-left: 184px; color: #666;">(${solution.outerRollsNeeded} rolls needed)</span>
         </div>
         <div class="result-item">
-            <strong>Rolls Needed:</strong> ${solution.rollsNeeded || Math.ceil(solution.parts / (solution.panelsPerRoll || Math.floor(5000 / state.curtainHeight)))}
+            <strong>Inner Panels Fabric:</strong> ${solution.innerFabricWidth} mm
+            <br><span style="margin-left: 184px; color: #666;">(${solution.innerRollsNeeded} rolls needed)</span>
         </div>
+        ` : `
+        <div class="result-item">
+            <strong>Fabric Width:</strong> ${solution.outerFabricWidth} mm
+            <br><span style="margin-left: 184px; color: #666;">(${solution.outerRollsNeeded + solution.innerRollsNeeded} rolls needed)</span>
+        </div>
+        `}
         <div class="result-item">
             <strong>Net Width per Panel:</strong> ${solution.netWidth.toFixed(1)} mm
         </div>
@@ -341,7 +372,7 @@ function renderDiagram(solution) {
     const maxWidth = containerRect.width || 1200; // Fallback if container not ready
     const maxHeight = containerRect.height || 600; // Fallback if container not ready
     
-    // Fixed diagram dimensions - 70% of page dimensions (constant size, only panel sizes change)
+    // Fixed diagram dimensions - based on PDF page size with margins
     // Calculate based on PDF page size (A4 landscape: 297mm x 210mm)
     // Convert to pixels: at 96 DPI, 1mm ≈ 3.78px
     const pdfWidthMm = 297; // A4 landscape width in mm
@@ -349,9 +380,13 @@ function renderDiagram(solution) {
     const pdfWidthPx = pdfWidthMm * 3.78; // Convert to pixels
     const pdfHeightPx = pdfHeightMm * 3.78; // Convert to pixels
     
-    // Fixed diagram dimensions: 70% * 1.3 = 91% of PDF page (constant)
-    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx * 0.7 * 1.3); // 70% * 1.3 = 91% of PDF height - CONSTANT
-    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx * 0.7 * 1.3); // 70% * 1.3 = 91% of PDF width - CONSTANT
+    // Fixed margins (in mm, then convert to pixels)
+    const marginMm = 15; // 15mm margin on all sides
+    const marginPx = marginMm * 3.78;
+    
+    // Fixed diagram dimensions: full page minus margins
+    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx - 2 * marginPx); // Full height minus margins - CONSTANT
+    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx - 2 * marginPx); // Full width minus margins - CONSTANT
     
     // Fixed gap between panels
     const gapPixels = 40; // Fixed gap between panels in pixels
@@ -638,6 +673,19 @@ function renderDiagram(solution) {
         // Display only the number, without "Panel Width" text
         panelWidthLabel.textContent = `${totalWidth.toFixed(1)} mm`;
         svg.appendChild(panelWidthLabel);
+        
+        // Add "Raw Material" label inside the panel (centered)
+        const rawMaterialLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const fabricWidth = isOuter ? solution.outerFabricWidth : solution.innerFabricWidth;
+        rawMaterialLabel.setAttribute('x', currentX + panelWidth / 2);
+        rawMaterialLabel.setAttribute('y', startY + panelHeight / 2);
+        rawMaterialLabel.setAttribute('text-anchor', 'middle');
+        rawMaterialLabel.setAttribute('dominant-baseline', 'middle');
+        rawMaterialLabel.setAttribute('font-size', '14');
+        rawMaterialLabel.setAttribute('font-weight', 'bold');
+        rawMaterialLabel.setAttribute('fill', '#000');
+        rawMaterialLabel.textContent = `Raw Material: ${fabricWidth} mm`;
+        svg.appendChild(rawMaterialLabel);
         
         // Move to next panel
         currentX += panelWidth + gapPx;
@@ -961,9 +1009,8 @@ async function exportToPDF() {
         const canvasHeight = canvas.height;
         const canvasAspectRatio = canvasWidth / canvasHeight;
         
-        // Reserve space on the right for roll information (60mm)
-        const rollInfoWidth = 60;
-        const availableWidth = pdfWidth - margin * 2 - rollInfoWidth;
+        // Use full width available (no roll info on the right)
+        const availableWidth = pdfWidth - margin * 2;
         const availableHeight = pdfHeight - topMargin - margin;
         
         const pdfAspectRatio = availableWidth / availableHeight;
@@ -988,42 +1035,6 @@ async function exportToPDF() {
         
         // Add image to PDF
         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-        
-        // Add roll information on the right side of PDF
-        // Convert 30px to mm: 30px * 0.264583mm/px ≈ 8mm
-        const pxToMm = 0.264583;
-        const offsetX = 30 * pxToMm; // 30px to mm
-        const offsetY = 30 * pxToMm; // 30px to mm
-        const rollInfoX = x + imgWidth + 10 - offsetX; // 10mm margin from diagram, moved 30px left
-        const rollInfoY = y + 10 + offsetY; // Start 10mm from top, moved 30px down
-        const rollInfoLineHeight = 7; // Line height in mm
-        
-        // Set font for roll information
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'bold');
-        
-        // Title - English only to avoid encoding issues
-        pdf.text('Roll Info', rollInfoX, rollInfoY);
-        
-        // Roll details
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        let currentY = rollInfoY + rollInfoLineHeight;
-        
-        // Number of rolls needed
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Rolls:', rollInfoX, currentY);
-        pdf.setFont('helvetica', 'normal');
-        currentY += rollInfoLineHeight;
-        pdf.text(`${solution.rollsNeeded}`, rollInfoX, currentY);
-        currentY += rollInfoLineHeight * 0.8; // Reduced spacing between rolls and width
-        
-        // Fabric width
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Width:', rollInfoX, currentY);
-        pdf.setFont('helvetica', 'normal');
-        currentY += rollInfoLineHeight;
-        pdf.text(`${solution.fabricWidth} mm`, rollInfoX, currentY);
         
         // Generate PDF filename with curtain name
         const filenameCurtainName = state.curtainName.trim() || 'Curtain';
