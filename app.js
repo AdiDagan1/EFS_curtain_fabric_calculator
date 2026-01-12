@@ -674,11 +674,11 @@ function renderDiagram(solution) {
         panelWidthLabel.textContent = `${totalWidth.toFixed(1)} mm`;
         svg.appendChild(panelWidthLabel);
         
-        // Add "Raw Material" label inside the panel (centered, moved 20px up)
+        // Add "Raw Material" label inside the panel (centered, moved 70px up)
         const rawMaterialLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         const fabricWidth = isOuter ? solution.outerFabricWidth : solution.innerFabricWidth;
         rawMaterialLabel.setAttribute('x', currentX + panelWidth / 2);
-        rawMaterialLabel.setAttribute('y', startY + panelHeight / 2 - 20); // Moved 20px up
+        rawMaterialLabel.setAttribute('y', startY + panelHeight / 2 - 70); // Moved 70px up (20 + 50)
         rawMaterialLabel.setAttribute('text-anchor', 'middle');
         rawMaterialLabel.setAttribute('dominant-baseline', 'middle');
         rawMaterialLabel.setAttribute('font-size', '14');
