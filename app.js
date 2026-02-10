@@ -258,6 +258,11 @@ function findOptimalSolution() {
 
                 if (totalWaste < minWaste) {
                     minWaste = totalWaste;
+                    // When same fabric for outer and inner, total rolls = ceil(parts / panelsPerRoll), not sum of two
+                    const sameFabric = outerFabricWidthMm === innerFabricWidthMm;
+                    const totalRollsNeeded = sameFabric
+                        ? Math.ceil(parts / outerPanelsPerRoll)
+                        : (outerRollsNeeded + innerRollsNeeded);
                     bestSolution = {
                         outerFabricWidth: outerFabricWidthMm,
                         innerFabricWidth: innerFabricWidthMm,
@@ -268,6 +273,7 @@ function findOptimalSolution() {
                         waste: totalWaste,
                         outerRollsNeeded: outerRollsNeeded,
                         innerRollsNeeded: innerRollsNeeded,
+                        totalRollsNeeded: totalRollsNeeded,
                         outerPanelsPerRoll: outerPanelsPerRoll,
                         innerPanelsPerRoll: innerPanelsPerRoll,
                         // Add height info for display/export
@@ -308,7 +314,7 @@ function displayResults(solution) {
         ` : `
         <div class="result-item">
             <strong>Fabric Width:</strong> ${solution.outerFabricWidth} mm
-            <br><span style="margin-left: 184px; color: #666;">(${solution.outerRollsNeeded + solution.innerRollsNeeded} rolls needed)</span>
+            <br><span style="margin-left: 184px; color: #666;">(${solution.totalRollsNeeded} roll(s) needed)</span>
         </div>
         `}
         <div class="result-item">
