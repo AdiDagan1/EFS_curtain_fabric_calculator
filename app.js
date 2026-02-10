@@ -171,133 +171,110 @@ function calculate() {
 
 /**
  * Find the optimal fabric solution with minimum waste
- * Supports different fabric widths for outer and inner panels
- * 
- * Algorithm:
- * 1. Loop over all valid parts values (2 to max)
- * 2. For each parts value, calculate netWidth and cut widths
- * 3. Try all combinations of fabric widths for outer and inner panels
- * 4. Select the solution with minimum total waste
- * 
- * @returns {Object|null} Solution object with outerFabricWidth, innerFabricWidth, parts, netWidth, outerPanelWidth, innerPanelWidth, waste
+ * UPDATED: Fixed roll length and added vertical hem allowances
  */
 function findOptimalSolution() {
-    const totalCurtainWidth = Number(state.curtainWidth); // in mm - ensure number
-    const curtainHeight = Number(state.curtainHeight); // in mm - ensure number
+    const totalCurtainWidth = Number(state.curtainWidth); // in mm
+    const finishedHeight = Number(state.curtainHeight); // in mm
     const fabricWidths = [2100, 2000, 1900, 1500]; // in mm
     const inventory = state.fabricInventory;
 
-    // Fold values in mm: 140mm (outer edge) + 40mm (inner edge) = 180mm
-    const OUTER_FOLD_MM = 180; // 140 mm (outer edge) + 40 mm (inner edge) = 180 mm
-    const INNER_FOLD_MM = 80;  // 40 mm on each side = 80 mm
-    
-    // Each roll is 50 meters = 5000 mm long
-    const ROLL_LENGTH_MM = 5000; // 50 meters = 5000 mm
+    // --- NEW CONSTANTS ---
+    const HEAD_HEM_MM = 50;   // מכפלת עליונה
+    const BOTTOM_HEM_MM = 150; // מכפלת תחתונה
+    const CUT_HEIGHT = finishedHeight + HEAD_HEM_MM + BOTTOM_HEM_MM; // הגובה לחיתוך כולל מכפלות
+
+    const OUTER_FOLD_MM = 180;
+    const INNER_FOLD_MM = 80;
+
+    // --- CORRECTION 1: 50 Meters = 50,000 mm ---
+    const ROLL_LENGTH_MM = 50000;
 
     let bestSolution = null;
     let minWaste = Infinity;
 
     // Calculate maximum parts based on available inventory
+    // Note: Using CUT_HEIGHT instead of finishedHeight for roll calculations
     let maxParts = 2;
     for (const fabricWidthMm of fabricWidths) {
         const availableRolls = Number(inventory[fabricWidthMm]);
         if (availableRolls > 0) {
-            const panelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+            const panelsPerRoll = Math.floor(ROLL_LENGTH_MM / CUT_HEIGHT);
             if (panelsPerRoll > 0) {
                 maxParts = Math.max(maxParts, availableRolls * panelsPerRoll);
             }
         }
     }
     maxParts = Math.min(maxParts, Math.ceil(totalCurtainWidth / 1500) + 5, 30);
-    
+
     // Loop over all valid parts values
     for (let parts = 2; parts <= maxParts; parts++) {
-        // Calculate net width per panel
         let netWidth = totalCurtainWidth / parts;
-        
-        // Check for invalid netWidth (negative or zero)
-        if (netWidth <= 0) {
-            continue;
-        }
-        
-        // Round netWidth to 1 decimal place
+
+        if (netWidth <= 0) continue;
+
         netWidth = Math.round(netWidth * 10) / 10;
-        
-        // Calculate cut widths (different for outer and inner panels) - all in mm
-        const outerCutWidth = netWidth + OUTER_FOLD_MM; // netWidth + 180 mm
-        const innerCutWidth = netWidth + INNER_FOLD_MM;  // netWidth + 80 mm
-        
-        // Try all combinations of fabric widths for outer and inner panels
+
+        const outerCutWidth = netWidth + OUTER_FOLD_MM;
+        const innerCutWidth = netWidth + INNER_FOLD_MM;
+
         for (const outerFabricWidthMm of fabricWidths) {
             const outerAvailableRolls = Number(inventory[outerFabricWidthMm]);
             if (outerAvailableRolls === 0) continue;
-            
+
             const outerFabricWidth = Number(outerFabricWidthMm);
-            
-            // Check if outer panels fit
-            if (outerCutWidth > outerFabricWidth) {
-                continue;
-            }
-            
-            // Calculate panels per roll for outer fabric
-            const outerPanelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+
+            if (outerCutWidth > outerFabricWidth) continue;
+
+            // Calc based on CUT_HEIGHT
+            const outerPanelsPerRoll = Math.floor(ROLL_LENGTH_MM / CUT_HEIGHT);
             if (outerPanelsPerRoll < 1) continue;
-            
-            // We need 2 outer panels
+
             const outerRollsNeeded = Math.ceil(2 / outerPanelsPerRoll);
-            if (outerRollsNeeded > outerAvailableRolls) {
-                continue;
-            }
-            
+            if (outerRollsNeeded > outerAvailableRolls) continue;
+
             for (const innerFabricWidthMm of fabricWidths) {
                 const innerAvailableRolls = Number(inventory[innerFabricWidthMm]);
                 if (innerAvailableRolls === 0) continue;
-                
+
                 const innerFabricWidth = Number(innerFabricWidthMm);
-                
-                // Check if inner panels fit
-                if (innerCutWidth > innerFabricWidth) {
-                    continue;
-                }
-                
-                // Calculate panels per roll for inner fabric
-                const innerPanelsPerRoll = Math.floor(ROLL_LENGTH_MM / curtainHeight);
+
+                if (innerCutWidth > innerFabricWidth) continue;
+
+                // Calc based on CUT_HEIGHT
+                const innerPanelsPerRoll = Math.floor(ROLL_LENGTH_MM / CUT_HEIGHT);
                 if (innerPanelsPerRoll < 1) continue;
-                
-                // We need (parts - 2) inner panels
+
                 const innerPanelsNeeded = parts - 2;
-                if (innerPanelsNeeded <= 0) continue;
-                
-                const innerRollsNeeded = Math.ceil(innerPanelsNeeded / innerPanelsPerRoll);
-                if (innerRollsNeeded > innerAvailableRolls) {
-                    continue;
-                }
-                
-                // Calculate total waste
+                const innerRollsNeeded = innerPanelsNeeded > 0 ? Math.ceil(innerPanelsNeeded / innerPanelsPerRoll) : 0;
+
+                if (innerRollsNeeded > innerAvailableRolls) continue;
+
                 const outerWaste = 2 * (outerFabricWidth - outerCutWidth);
                 const innerWaste = innerPanelsNeeded * (innerFabricWidth - innerCutWidth);
                 const totalWaste = outerWaste + innerWaste;
-                
-                // Only consider solutions with non-negative waste
-                if (totalWaste < 0) {
-                    continue;
-                }
 
-                // Check if this is a better solution (lower waste is better)
+                if (totalWaste < 0) continue;
+
                 if (totalWaste < minWaste) {
                     minWaste = totalWaste;
                     bestSolution = {
                         outerFabricWidth: outerFabricWidthMm,
                         innerFabricWidth: innerFabricWidthMm,
                         parts: parts,
-                        netWidth: netWidth, // in mm
-                        outerPanelWidth: outerCutWidth,  // in mm
-                        innerPanelWidth: innerCutWidth,  // in mm
-                        waste: totalWaste, // in mm
+                        netWidth: netWidth,
+                        outerPanelWidth: outerCutWidth,
+                        innerPanelWidth: innerCutWidth,
+                        waste: totalWaste,
                         outerRollsNeeded: outerRollsNeeded,
                         innerRollsNeeded: innerRollsNeeded,
                         outerPanelsPerRoll: outerPanelsPerRoll,
-                        innerPanelsPerRoll: innerPanelsPerRoll
+                        innerPanelsPerRoll: innerPanelsPerRoll,
+                        // Add height info for display/export
+                        finishedHeight: finishedHeight,
+                        cutHeight: CUT_HEIGHT,
+                        headHem: HEAD_HEM_MM,
+                        bottomHem: BOTTOM_HEM_MM
                     };
                 }
             }
@@ -357,93 +334,47 @@ function displayResults(solution) {
 function renderDiagram(solution) {
     const container = document.getElementById('diagram-container');
     container.innerHTML = '';
-    
-    // Always use English for diagram labels (project/curtain names can be in Hebrew)
+
     const t = translations.en;
-    const isRTL = false; // Always LTR for English labels
-    
-    // Get project and curtain names early (before using them in viewBox calculation)
-    // Use safe access to prevent errors if state properties are undefined
+
     const projectName = (state.projectName && state.projectName.trim()) || '';
     const curtainName = (state.curtainName && state.curtainName.trim()) || '';
-    
-    // Get container dimensions to use full available space
-    const containerRect = container.getBoundingClientRect();
-    const maxWidth = containerRect.width || 1200; // Fallback if container not ready
-    const maxHeight = containerRect.height || 600; // Fallback if container not ready
-    
-    // Fixed diagram dimensions - based on PDF page size with margins
-    // Calculate based on PDF page size (A4 landscape: 297mm x 210mm)
-    // Convert to pixels: at 96 DPI, 1mm ≈ 3.78px
-    const pdfWidthMm = 297; // A4 landscape width in mm
-    const pdfHeightMm = 210; // A4 landscape height in mm
-    const pdfWidthPx = pdfWidthMm * 3.78; // Convert to pixels
-    const pdfHeightPx = pdfHeightMm * 3.78; // Convert to pixels
-    
-    // Fixed margins (in mm, then convert to pixels)
-    const marginMm = 15; // 15mm margin on all sides
-    const marginPx = marginMm * 3.78;
-    
-    // Fixed diagram dimensions: full page minus margins
-    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx - 2 * marginPx); // Full height minus margins - CONSTANT
-    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx - 2 * marginPx); // Full width minus margins - CONSTANT
-    
-    // Fixed gap between panels
-    const gapPixels = 40; // Fixed gap between panels in pixels
-    
-    // Calculate panel dimensions based on number of parts
-    // totalWidth = 2 * outerPanelWidth + (parts - 2) * innerPanelWidth + (parts - 1) * gap
-    // Since outerPanelWidth = innerPanelWidth (same visual size), we can simplify:
-    // totalWidth = parts * panelWidth + (parts - 1) * gap
-    // So: panelWidth = (totalWidth - (parts - 1) * gap) / parts
+
+    // SVG Setup
+    const pdfWidthPx = 297 * 3.78;
+    const pdfHeightPx = 210 * 3.78;
+    const marginPx = 15 * 3.78;
+
+    const FIXED_DIAGRAM_HEIGHT = Math.floor(pdfHeightPx - 2 * marginPx);
+    const FIXED_DIAGRAM_WIDTH = Math.floor(pdfWidthPx - 2 * marginPx);
+    const gapPixels = 40;
+
     const panelWidth = Math.floor((FIXED_DIAGRAM_WIDTH - (solution.parts - 1) * gapPixels) / solution.parts);
-    
-    // Use fixed dimensions for display
-    const panelHeight = FIXED_DIAGRAM_HEIGHT; // Constant height
-    const outerPanelWidth = panelWidth; // Same width for all panels (visual)
-    const innerPanelWidth = panelWidth; // Same width for all panels (visual)
+    const panelHeight = FIXED_DIAGRAM_HEIGHT;
     const gapPx = gapPixels;
-    
-    // Total diagram width (should equal FIXED_DIAGRAM_WIDTH)
-    const totalWidthPx = 2 * outerPanelWidth + (solution.parts - 2) * innerPanelWidth + (solution.parts - 1) * gapPx;
-    
-    // Starting position - exactly 10px from top, with margin for height indicator on left
+
+    const totalWidthPx = solution.parts * panelWidth + (solution.parts - 1) * gapPx;
+
     const startX = 80;
-    const startY = 10; // Exactly 10px from top edge of SVG - single source of truth
-    
-    // Calculate space needed for labels above panels (total width line and fold labels)
-    // Total width line is at Y = -5, label is at Y = -13, so we need space from -15 to startY
-    const spaceAbovePanels = 25; // Space for labels above panels (from -15 to startY=10)
-    
-    // Calculate space needed for labels below panels
-    // Panel width labels are positioned at startY + panelHeight + 25
-    // Text height for font-size 12 is approximately 15px
-    // Add extra space for total width line (now lowered by 50px total), label, and circles on corners
-    const spaceForLabels = 25 + 15; // Position offset + text height = 40px
-    const spaceBelowTotalWidth = 100; // Space for total width line (lowered by 50px), label, and circles on corners
-    
-    // Calculate the actual bottom of all content dynamically
+    const startY = 10;
+
+    const spaceForLabels = 40;
+    const spaceBelowTotalWidth = 100;
     const contentBottomY = startY + panelHeight + spaceForLabels + spaceBelowTotalWidth;
-    
-    // Create SVG element - use full container width
-    // Set viewBox to anchor content to top with exactly 10px top margin
-    const viewBoxPaddingX = 200; // Extra space for height indicator on left
+
+    const viewBoxPaddingX = 200;
+    const topSpace = projectName || curtainName ? 60 : 20;
+    const extraRightSpace = 150;
+
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    // ViewBox: includes space above for project/curtain names, panels, and space below for total width line and detail views
-    // Adjust viewBox to start at negative Y to include all content above panels
-    const topSpace = projectName || curtainName ? 60 : 20; // Space for names above
-    // Increase viewBox width to include images on the right side
-    const extraRightSpace = 150; // Extra space for images on the right
     svg.setAttribute('viewBox', `0 -${topSpace} ${totalWidthPx + viewBoxPaddingX + extraRightSpace} ${contentBottomY + topSpace}`);
-    // Use YMin to align content to top instead of centering vertically
     svg.setAttribute('preserveAspectRatio', 'xMidYMin meet');
     svg.setAttribute('class', 'diagram-svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    // Always LTR for English labels (project/curtain names can be in Hebrew but are handled by browser)
-    
-    // Define defs for patterns (dashed lines) and clip paths
+
+    // Defs for dashed lines
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     const dashPattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
     dashPattern.setAttribute('id', 'dashPattern');
@@ -460,10 +391,9 @@ function renderDiagram(solution) {
     dashLine.setAttribute('stroke-dasharray', '4,4');
     dashPattern.appendChild(dashLine);
     defs.appendChild(dashPattern);
-    
     svg.appendChild(defs);
-    
-    // Draw height indicator (vertical line on the left)
+
+    // --- Height Indicator (Left) ---
     const heightLineY = startY;
     const heightLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     heightLine.setAttribute('x1', startX - 30);
@@ -473,8 +403,8 @@ function renderDiagram(solution) {
     heightLine.setAttribute('stroke', '#000');
     heightLine.setAttribute('stroke-width', '2');
     svg.appendChild(heightLine);
-    
-    // Height label
+
+    // Finished Height Label
     const heightLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     heightLabel.setAttribute('x', startX - 35);
     heightLabel.setAttribute('y', heightLineY + panelHeight / 2);
@@ -484,43 +414,48 @@ function renderDiagram(solution) {
     heightLabel.setAttribute('font-size', '12');
     heightLabel.setAttribute('font-weight', '600');
     heightLabel.setAttribute('fill', '#000');
-    // Display only in mm
-    heightLabel.textContent = `${state.curtainHeight.toFixed(0)} mm`;
+    heightLabel.textContent = `H: ${solution.finishedHeight.toFixed(0)} mm`;
     svg.appendChild(heightLabel);
-    
-    // Add project name and curtain name at the center top of SVG (for PDF export with Unicode support)
-    // Format: "Project - Curtain Name"
-    const centerX = startX + totalWidthPx / 2; // Center of the diagram
-    const nameY = -30; // Position above the diagram
+
+    // Cut Height Label (Secondary)
+    const cutHeightLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    cutHeightLabel.setAttribute('x', startX - 55);
+    cutHeightLabel.setAttribute('y', heightLineY + panelHeight / 2);
+    cutHeightLabel.setAttribute('text-anchor', 'middle');
+    cutHeightLabel.setAttribute('dominant-baseline', 'middle');
+    cutHeightLabel.setAttribute('transform', `rotate(-90 ${startX - 55} ${heightLineY + panelHeight / 2})`);
+    cutHeightLabel.setAttribute('font-size', '11');
+    cutHeightLabel.setAttribute('fill', '#666');
+    cutHeightLabel.textContent = `(Cut: ${solution.cutHeight.toFixed(0)} mm)`;
+    svg.appendChild(cutHeightLabel);
+
+    // Title
+    const centerX = startX + totalWidthPx / 2;
+    const nameY = -30;
     let titleText = '';
-    if (projectName && curtainName) {
-        titleText = `${projectName} - ${curtainName}`;
-    } else if (projectName) {
-        titleText = projectName;
-    } else if (curtainName) {
-        titleText = curtainName;
-    }
-    
+    if (projectName && curtainName) titleText = `${projectName} - ${curtainName}`;
+    else if (projectName) titleText = projectName;
+    else if (curtainName) titleText = curtainName;
+
     if (titleText) {
         const titleTextElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         titleTextElement.setAttribute('x', centerX);
         titleTextElement.setAttribute('y', nameY);
-        titleTextElement.setAttribute('text-anchor', 'middle'); // Center-aligned
+        titleTextElement.setAttribute('text-anchor', 'middle');
         titleTextElement.setAttribute('font-size', '16');
         titleTextElement.setAttribute('font-weight', 'bold');
         titleTextElement.setAttribute('fill', '#000');
         titleTextElement.textContent = titleText;
         svg.appendChild(titleTextElement);
     }
-    
-    // Draw panels
+
+    // Draw Panels
     let currentX = startX;
     for (let i = 0; i < solution.parts; i++) {
         const isOuter = i === 0 || i === solution.parts - 1;
-        const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
-        const totalWidth = isOuter ? solution.outerPanelWidth : solution.innerPanelWidth;
+        const totalWidthMm = isOuter ? solution.outerPanelWidth : solution.innerPanelWidth;
 
-        // Panel rectangle (white fill, black border)
+        // Panel Rect
         const panelRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         panelRect.setAttribute('x', currentX);
         panelRect.setAttribute('y', startY);
@@ -530,138 +465,132 @@ function renderDiagram(solution) {
         panelRect.setAttribute('stroke', '#000');
         panelRect.setAttribute('stroke-width', '2');
         svg.appendChild(panelRect);
-        
-        // Fold lines (dashed vertical lines) - calculate position based on proportion of panel width
-        // Outer panels: 140mm (outer edge) + 40mm (inner edge) = 180mm total
-        // Inner panels: 40mm on each side = 80mm total
-        const OUTER_FOLD_MM = 140; // 140mm (outer edge)
-        const INNER_FOLD_MM = 40;  // 40mm (inner edge or both sides for inner panels)
+
+        // --- Horizontal Hem Lines ---
+        const topHemVisualY = startY + 25;
+        const topHemLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        topHemLine.setAttribute('x1', currentX);
+        topHemLine.setAttribute('y1', topHemVisualY);
+        topHemLine.setAttribute('x2', currentX + panelWidth);
+        topHemLine.setAttribute('y2', topHemVisualY);
+        topHemLine.setAttribute('stroke', '#999');
+        topHemLine.setAttribute('stroke-width', '1');
+        topHemLine.setAttribute('stroke-dasharray', '3,2');
+        svg.appendChild(topHemLine);
+
+        const topHemLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        topHemLabel.setAttribute('x', currentX + panelWidth / 2);
+        topHemLabel.setAttribute('y', topHemVisualY - 5);
+        topHemLabel.setAttribute('text-anchor', 'middle');
+        topHemLabel.setAttribute('font-size', '9');
+        topHemLabel.setAttribute('fill', '#999');
+        topHemLabel.textContent = "50 mm";
+        svg.appendChild(topHemLabel);
+
+        const bottomHemVisualY = startY + panelHeight - 50;
+        const bottomHemLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        bottomHemLine.setAttribute('x1', currentX);
+        bottomHemLine.setAttribute('y1', bottomHemVisualY);
+        bottomHemLine.setAttribute('x2', currentX + panelWidth);
+        bottomHemLine.setAttribute('y2', bottomHemVisualY);
+        bottomHemLine.setAttribute('stroke', '#999');
+        bottomHemLine.setAttribute('stroke-width', '1');
+        bottomHemLine.setAttribute('stroke-dasharray', '3,2');
+        svg.appendChild(bottomHemLine);
+
+        const bottomHemLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        bottomHemLabel.setAttribute('x', currentX + panelWidth / 2);
+        bottomHemLabel.setAttribute('y', bottomHemVisualY + 15);
+        bottomHemLabel.setAttribute('text-anchor', 'middle');
+        bottomHemLabel.setAttribute('font-size', '9');
+        bottomHemLabel.setAttribute('fill', '#999');
+        bottomHemLabel.textContent = "150 mm";
+        svg.appendChild(bottomHemLabel);
+
+        // --- Fold Lines (Vertical) ---
+        const OUTER_FOLD_MM = 140;
+        const INNER_FOLD_MM = 40;
         let leftFoldX, rightFoldX;
-        
-        // Calculate fold positions as proportion of panel width (fixed display size)
-        // totalWidth is the actual width in mm, panelWidth is the fixed display width in pixels
-        const foldScale = panelWidth / totalWidth; // Scale factor for this panel
-        
+
+        const foldScale = panelWidth / totalWidthMm;
+
         if (isOuter) {
             if (i === 0) {
-                // Left outer panel: 140mm fold on left (outer edge), 40mm fold on right (inner edge)
-                leftFoldX = currentX + OUTER_FOLD_MM * foldScale; // 140mm from left edge
-                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * foldScale; // 40mm from right edge
+                leftFoldX = currentX + OUTER_FOLD_MM * foldScale;
+                rightFoldX = currentX + panelWidth - INNER_FOLD_MM * foldScale;
             } else {
-                // Right outer panel: 40mm fold on left (inner edge), 140mm fold on right (outer edge)
-                leftFoldX = currentX + INNER_FOLD_MM * foldScale; // 40mm from left edge
-                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * foldScale; // 140mm from right edge
+                leftFoldX = currentX + INNER_FOLD_MM * foldScale;
+                rightFoldX = currentX + panelWidth - OUTER_FOLD_MM * foldScale;
             }
         } else {
-            // Inner panel: 40mm on each side
-            leftFoldX = currentX + INNER_FOLD_MM * foldScale; // 40mm from left edge
-            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * foldScale; // 40mm from right edge
+            leftFoldX = currentX + INNER_FOLD_MM * foldScale;
+            rightFoldX = currentX + panelWidth - INNER_FOLD_MM * foldScale;
         }
-        
-        // Draw left fold line (only dashed line on left side)
-        const leftFoldLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        leftFoldLine.setAttribute('x1', leftFoldX);
-        leftFoldLine.setAttribute('y1', startY);
-        leftFoldLine.setAttribute('x2', leftFoldX);
-        leftFoldLine.setAttribute('y2', startY + panelHeight);
-        leftFoldLine.setAttribute('stroke', '#666');
-        leftFoldLine.setAttribute('stroke-width', '1.5');
-        leftFoldLine.setAttribute('stroke-dasharray', '4,4');
-        svg.appendChild(leftFoldLine);
-        
-        // Left fold label - position based on actual fold line position
-        const leftFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        let leftLabelX = leftFoldX;
-        let leftLabelText = '';
-        
+
+        // Draw folds
+        const drawFold = (x, label, anchor) => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x);
+            line.setAttribute('y1', startY);
+            line.setAttribute('x2', x);
+            line.setAttribute('y2', startY + panelHeight);
+            line.setAttribute('stroke', '#666');
+            line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('stroke-dasharray', '4,4');
+            svg.appendChild(line);
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', x);
+            text.setAttribute('y', startY - 2);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', '10');
+            text.setAttribute('font-weight', '600');
+            text.setAttribute('fill', '#666');
+            text.textContent = label;
+            svg.appendChild(text);
+        };
+
         if (isOuter && i === 0) {
-            // Left outer: 140mm fold is at leftFoldX, label should be at the left edge (currentX)
-            leftLabelX = currentX; // Label at left edge
-            leftLabelText = `140 mm`;
+            drawFold(leftFoldX, '', 'middle');
+            const lText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            lText.setAttribute('x', currentX);
+            lText.setAttribute('y', startY - 2);
+            lText.setAttribute('font-size', '10');
+            lText.setAttribute('font-weight', '600');
+            lText.setAttribute('fill', '#666');
+            lText.textContent = "140 mm";
+            svg.appendChild(lText);
+            drawFold(rightFoldX, "40 mm", 'middle');
         } else if (isOuter && i === solution.parts - 1) {
-            // Right outer: 40mm fold is at leftFoldX
-            leftLabelX = leftFoldX;
-            leftLabelText = `40 mm`;
+            drawFold(leftFoldX, "40 mm", 'middle');
+            drawFold(rightFoldX, "140 mm", 'middle');
         } else {
-            // Inner: 40mm fold is at leftFoldX
-            leftLabelX = leftFoldX;
-            leftLabelText = `40 mm`;
+            drawFold(leftFoldX, "40 mm", 'middle');
+            drawFold(rightFoldX, "40 mm", 'middle');
         }
-        
-        leftFoldLabel.setAttribute('x', leftLabelX);
-        // Position labels just above each panel (relative to panel, not fixed global Y)
-        const foldLabelY = startY - 2; // Just above the panel top edge
-        leftFoldLabel.setAttribute('y', foldLabelY);
-        // For inner panels, use 'middle' alignment to prevent overlap
-        const labelAnchor = (!isOuter) ? 'middle' : 'middle';
-        leftFoldLabel.setAttribute('text-anchor', labelAnchor);
-        leftFoldLabel.setAttribute('font-size', '10');
-        leftFoldLabel.setAttribute('font-weight', '600');
-        leftFoldLabel.setAttribute('fill', '#666');
-        // Always LTR for English labels
-        leftFoldLabel.textContent = leftLabelText;
-        svg.appendChild(leftFoldLabel);
-        
-        // Draw right fold line
-        const rightFoldLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        rightFoldLine.setAttribute('x1', rightFoldX);
-        rightFoldLine.setAttribute('y1', startY);
-        rightFoldLine.setAttribute('x2', rightFoldX);
-        rightFoldLine.setAttribute('y2', startY + panelHeight);
-        rightFoldLine.setAttribute('stroke', '#666');
-        rightFoldLine.setAttribute('stroke-width', '1.5');
-        rightFoldLine.setAttribute('stroke-dasharray', '4,4');
-        svg.appendChild(rightFoldLine);
-        
-        // Right fold label
-        const rightFoldLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        rightFoldLabel.setAttribute('x', rightFoldX);
-        // Position labels just above each panel (relative to panel, not fixed global Y)
-        rightFoldLabel.setAttribute('y', foldLabelY);
-        // For inner panels, use 'middle' alignment to prevent overlap
-        rightFoldLabel.setAttribute('text-anchor', labelAnchor);
-        rightFoldLabel.setAttribute('font-size', '10');
-        rightFoldLabel.setAttribute('font-weight', '600');
-        rightFoldLabel.setAttribute('fill', '#666');
-        // Always LTR for English labels
-        if (isOuter && i === 0) {
-            rightFoldLabel.textContent = `40 mm`;
-        } else if (isOuter && i === solution.parts - 1) {
-            rightFoldLabel.textContent = `140 mm`;
-        } else {
-            rightFoldLabel.textContent = `40 mm`;
-        }
-        svg.appendChild(rightFoldLabel);
-        
-        // Net width line (horizontal dashed line strictly between the two fold lines)
-        // The net width is the area between the folded edges
-        // Use the fold line positions we already calculated
-        const netWidthStartX = leftFoldX;
-        const netWidthEndX = rightFoldX;
+
+        // Net Width Indicator
         const netWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        netWidthLine.setAttribute('x1', netWidthStartX);
+        netWidthLine.setAttribute('x1', leftFoldX);
         netWidthLine.setAttribute('y1', startY + panelHeight / 2);
-        netWidthLine.setAttribute('x2', netWidthEndX);
+        netWidthLine.setAttribute('x2', rightFoldX);
         netWidthLine.setAttribute('y2', startY + panelHeight / 2);
         netWidthLine.setAttribute('stroke', '#666');
         netWidthLine.setAttribute('stroke-width', '1.5');
         netWidthLine.setAttribute('stroke-dasharray', '4,4');
         svg.appendChild(netWidthLine);
-        
-        // Net width label
+
         const netWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        netWidthLabel.setAttribute('x', (netWidthStartX + netWidthEndX) / 2);
+        netWidthLabel.setAttribute('x', (leftFoldX + rightFoldX) / 2);
         netWidthLabel.setAttribute('y', startY + panelHeight / 2 - 8);
         netWidthLabel.setAttribute('text-anchor', 'middle');
         netWidthLabel.setAttribute('font-size', '10');
         netWidthLabel.setAttribute('font-weight', '600');
         netWidthLabel.setAttribute('fill', '#666');
-        // Always LTR for English labels
-        // Display only in mm
         netWidthLabel.textContent = `${solution.netWidth.toFixed(1)} mm`;
         svg.appendChild(netWidthLabel);
-        
-        // Panel width label (below panel, centered) - display only in mm
+
+        // Panel Width Label
         const panelWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         panelWidthLabel.setAttribute('x', currentX + panelWidth / 2);
         panelWidthLabel.setAttribute('y', startY + panelHeight + 25);
@@ -669,32 +598,27 @@ function renderDiagram(solution) {
         panelWidthLabel.setAttribute('font-size', '12');
         panelWidthLabel.setAttribute('font-weight', '600');
         panelWidthLabel.setAttribute('fill', '#000');
-        // Always LTR for English labels
-        // Display only the number, without "Panel Width" text
-        panelWidthLabel.textContent = `${totalWidth.toFixed(1)} mm`;
+        panelWidthLabel.textContent = `${totalWidthMm.toFixed(1)} mm`;
         svg.appendChild(panelWidthLabel);
-        
-        // Add "Raw Material" label inside the panel (centered, moved 70px up)
+
+        // Raw Material Label
         const rawMaterialLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        const fabricWidth = isOuter ? solution.outerFabricWidth : solution.innerFabricWidth;
+        const fabW = isOuter ? solution.outerFabricWidth : solution.innerFabricWidth;
         rawMaterialLabel.setAttribute('x', currentX + panelWidth / 2);
-        rawMaterialLabel.setAttribute('y', startY + panelHeight / 2 - 70); // Moved 70px up (20 + 50)
+        rawMaterialLabel.setAttribute('y', startY + panelHeight / 2 - 70);
         rawMaterialLabel.setAttribute('text-anchor', 'middle');
-        rawMaterialLabel.setAttribute('dominant-baseline', 'middle');
         rawMaterialLabel.setAttribute('font-size', '14');
         rawMaterialLabel.setAttribute('font-weight', 'bold');
         rawMaterialLabel.setAttribute('fill', '#000');
-        rawMaterialLabel.textContent = `Raw Material: ${fabricWidth} mm`;
+        rawMaterialLabel.textContent = `Raw: ${fabW} mm`;
         svg.appendChild(rawMaterialLabel);
-        
-        // Move to next panel
+
         currentX += panelWidth + gapPx;
     }
-    
-    // Draw total width line below the diagram (after panel width labels)
-    // Panel width labels are at: startY + panelHeight + 25
-    const panelWidthLabelY = startY + panelHeight + 25; // Y position of panel width labels
-    const totalWidthLineY = panelWidthLabelY + 70; // Lowered by 50px total (was 20, now 70)
+
+    // Total Width Line
+    const panelWidthLabelY = startY + panelHeight + 25;
+    const totalWidthLineY = panelWidthLabelY + 70;
     const totalWidthLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     totalWidthLine.setAttribute('x1', startX);
     totalWidthLine.setAttribute('y1', totalWidthLineY);
@@ -703,30 +627,24 @@ function renderDiagram(solution) {
     totalWidthLine.setAttribute('stroke', '#000');
     totalWidthLine.setAttribute('stroke-width', '2');
     svg.appendChild(totalWidthLine);
-    
-    // Total width label (centered) - display only in mm, positioned above the line
+
     const totalWidthLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    const labelText = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
     totalWidthLabel.setAttribute('x', startX + totalWidthPx / 2);
     totalWidthLabel.setAttribute('y', totalWidthLineY - 5);
     totalWidthLabel.setAttribute('text-anchor', 'middle');
     totalWidthLabel.setAttribute('font-size', '14');
     totalWidthLabel.setAttribute('font-weight', '600');
     totalWidthLabel.setAttribute('fill', '#000');
-    totalWidthLabel.textContent = labelText;
+    totalWidthLabel.textContent = `${t.totalWidth}: ${state.curtainWidth.toFixed(0)} mm`;
     svg.appendChild(totalWidthLabel);
-    
-    // Helper function to add image circle on corner
+
+    // --- Helper for Image Circles ---
     const addImageCircle = (x, y, imagePath, circleId) => {
-        // Circle radius reduced by 20%: 40 * 0.8 = 32
         const circleRadius = 32;
-        // Increase image size by 20% but don't exceed circle bounds (zoom in effect)
-        // Max image size should be circleRadius * 2, but we'll use circleRadius * 1.8 to leave some margin
         const maxImageSize = circleRadius * 1.8;
-        const baseImageSize = 54; // 67.5 * 0.8 = 54
-        const imageSize = Math.min(baseImageSize * 1.2, maxImageSize); // Increase by 20% but cap at max
-        
-        // Add circle
+        const baseImageSize = 54;
+        const imageSize = Math.min(baseImageSize * 1.2, maxImageSize);
+
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', x.toString());
         circle.setAttribute('cy', y.toString());
@@ -735,8 +653,7 @@ function renderDiagram(solution) {
         circle.setAttribute('stroke', '#000');
         circle.setAttribute('stroke-width', '2');
         svg.appendChild(circle);
-        
-        // Create clip path
+
         const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
         clipPath.setAttribute('id', `clipCircle_${circleId}_${x}_${y}`);
         clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
@@ -745,12 +662,10 @@ function renderDiagram(solution) {
         clipCircle.setAttribute('cy', y.toString());
         clipCircle.setAttribute('r', circleRadius.toString());
         clipPath.appendChild(clipCircle);
-        const existingDefs = svg.querySelector('defs');
-        if (existingDefs) {
-            existingDefs.appendChild(clipPath);
-        }
-        
-        // Add image
+
+        const existingDefs = svg.querySelector('defs') || defs;
+        existingDefs.appendChild(clipPath);
+
         const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
         img.setAttribute('x', (x - imageSize / 2).toString());
         img.setAttribute('y', (y - imageSize / 2).toString());
@@ -758,6 +673,7 @@ function renderDiagram(solution) {
         img.setAttribute('height', imageSize.toString());
         img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         img.setAttribute('clip-path', `url(#clipCircle_${circleId}_${x}_${y})`);
+
         loadImageAsBase64(imagePath).then(base64 => {
             if (base64) {
                 img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', base64);
@@ -769,87 +685,42 @@ function renderDiagram(solution) {
         });
         svg.appendChild(img);
     };
-    
-    // Add detail view images on all bottom corners
-    const bottomY = startY + panelHeight; // Bottom of all panels
-    
-    // Circle radius and spacing
-    const circleRadius = 32;
-    const cornerOffset = 8; // Fixed offset from corner to prevent overlap (in pixels)
-    
-    // Track shared corners to offset circles
-    const sharedCorners = new Set(); // Track corners that are shared between panels
-    
-    // Mark shared corners (corners between panels)
+
+    // --- Placing Detail Circles on Side Ribs ---
+    const bottomY = startY + panelHeight;
+    const detailY = bottomY - 50;
+
     let panelX = startX;
-    for (let i = 0; i < solution.parts - 1; i++) {
-        const isOuter = i === 0 || i === solution.parts - 1;
-        const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
-        const rightCornerX = panelX + panelWidth;
-        sharedCorners.add(`${Math.round(rightCornerX)}_${Math.round(bottomY)}`);
-        panelX += panelWidth + gapPx;
-    }
-    
-    // Loop through all panels and add circles on bottom corners with spacing
-    panelX = startX;
+
     for (let i = 0; i < solution.parts; i++) {
         const isOuter = i === 0 || i === solution.parts - 1;
-        const panelWidth = isOuter ? outerPanelWidth : innerPanelWidth;
-        
-        // Calculate corner positions with offset
-        const leftCornerX = panelX;
-        const rightCornerX = panelX + panelWidth;
-        const leftKey = `${Math.round(leftCornerX)}_${Math.round(bottomY)}`;
-        const rightKey = `${Math.round(rightCornerX)}_${Math.round(bottomY)}`;
-        
+        const displayPanelWidth = (FIXED_DIAGRAM_WIDTH - (solution.parts - 1) * gapPixels) / solution.parts;
+
+        const leftX = panelX;
+        const rightX = panelX + displayPanelWidth;
+
         if (isOuter) {
-            // Outer panels: add image 1 on outer corner
             if (i === 0) {
-                // Left outer panel: left bottom corner (outer corner) - offset inward
-                const leftX = leftCornerX + cornerOffset;
-                addImageCircle(leftX, bottomY, '1.jpg', `1_${i}_left`);
-                
-                // If only one panel, also add image 1 on right corner
-                if (solution.parts === 1) {
-                    const rightX = rightCornerX - cornerOffset;
-                    addImageCircle(rightX, bottomY, '1.jpg', `1_${i}_right`);
+                addImageCircle(leftX, detailY, '1.jpg', `1_${i}_left`);
+                if (solution.parts > 1) {
+                    addImageCircle(rightX, detailY, '2.png', `2_${i}_right`);
                 } else {
-                    // Left outer panel: right bottom corner (inner corner)
-                    // If shared corner, offset more to prevent overlap
-                    const offset = sharedCorners.has(rightKey) ? cornerOffset * 1.5 : cornerOffset;
-                    const rightX = rightCornerX - offset;
-                    addImageCircle(rightX, bottomY, '2.png', `2_${i}_right`);
+                    addImageCircle(rightX, detailY, '1.jpg', `1_${i}_right`);
                 }
             } else {
-                // Right outer panel: right bottom corner (outer corner) - offset inward
-                const rightX = rightCornerX - cornerOffset;
-                addImageCircle(rightX, bottomY, '1.jpg', `1_${i}_right`);
-                // Right outer panel: left bottom corner (inner corner)
-                // If shared corner, offset more to prevent overlap
-                const offset = sharedCorners.has(leftKey) ? cornerOffset * 1.5 : cornerOffset;
-                const leftX = leftCornerX + offset;
-                addImageCircle(leftX, bottomY, '2.png', `2_${i}_left`);
+                addImageCircle(leftX, detailY, '2.png', `2_${i}_left`);
+                addImageCircle(rightX, detailY, '1.jpg', `1_${i}_right`);
             }
         } else {
-            // Inner panels: add image 2 on both bottom corners
-            // Left corner - if shared, offset more
-            const leftOffset = sharedCorners.has(leftKey) ? cornerOffset * 1.5 : cornerOffset;
-            const leftX = leftCornerX + leftOffset;
-            addImageCircle(leftX, bottomY, '2.png', `2_${i}_left`);
-            // Right corner - if shared, offset more
-            const rightOffset = sharedCorners.has(rightKey) ? cornerOffset * 1.5 : cornerOffset;
-            const rightX = rightCornerX - rightOffset;
-            addImageCircle(rightX, bottomY, '2.png', `2_${i}_right`);
+            addImageCircle(leftX, detailY, '2.png', `2_${i}_left`);
+            addImageCircle(rightX, detailY, '2.png', `2_${i}_right`);
         }
-        
-        // Move to next panel
-        panelX += panelWidth + gapPx;
+
+        panelX += displayPanelWidth + gapPx;
     }
-    
-    // Store SVG reference for PDF export
+
     state.diagramSVG = svg;
     state.diagramSolution = solution;
-    
     container.appendChild(svg);
 }
 
